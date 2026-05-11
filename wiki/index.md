@@ -17,6 +17,9 @@ Master catalog of all wiki pages. Updated on every ingest.
 ## Decisions
 <!-- Architecture Decision Records (ADRs) -->
 
+## Meta
+- [[claude-obsidian Plugin Setup Notes]] — 插件安装、vault 搭建过程中的问题和解决方案
+
 ## Dependencies
 <!-- External deps, versions, risk assessment -->
 
@@ -30,7 +33,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 <!-- People, orgs, products, repos -->
 
 ## Concepts
-<!-- Ideas, patterns, frameworks -->
+- [[OpenClaw Memory System]] — OpenClaw 的记忆系统实现：三层架构、写入触发、读取加载、截断策略
 
 ## Questions
 <!-- Filed answers to user queries -->

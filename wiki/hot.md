@@ -1,22 +1,24 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-11T16:00:00
+updated: 2026-05-11T16:45:00
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-11. Vault scaffolded for code architecture documentation.
+2026-05-11. Saved plugin setup notes and memory system analysis.
 
 ## Key Recent Facts
-- Vault initialized with Mode B (GitHub / Repository) structure
-- Target: document codebase architecture, decisions, patterns
-- Key folders: modules/, components/, decisions/, dependencies/, flows/
+- claude-obsidian plugin skill 在非 vault CWD 下需要手动调用 `claude-obsidian:save`
+- `/save` 直接输入可能不被 harness 识别，用 "save this" 更可靠
+- `_index.md` 子索引需要手动同步，save workflow 未明确覆盖
 
 ## Recent Changes
-- Created: [[wiki/index.md]], [[wiki/log.md]], [[wiki/overview.md]]
-- Created: domain sub-indexes for modules, components, decisions, dependencies, flows
+- Created: [[claude-obsidian Plugin Setup Notes]] (meta)
+- Created: [[OpenClaw Memory System]] (concept)
+- Updated: wiki/concepts/_index.md 补充了概念索引条目
 
 ## Active Threads
-- Vault freshly scaffolded — awaiting first ingest
+- Vault 已就绪，可开始 ingest 仓库进行分析
+- 待研究：如何让 skill 在 wiki-vault 外也能自动工作
