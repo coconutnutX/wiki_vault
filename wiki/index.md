@@ -27,7 +27,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 <!-- Data flows, request paths, auth flows -->
 
 ## Repos
-<!-- External repositories researched -->
+- [[OpenClaw MEMORY.md Implementation]] — MEMORY.md 源码级实现分析：写入触发、读取路径、截断算法
 
 ## Entities
 <!-- People, orgs, products, repos -->
