@@ -1,0 +1,8 @@
+{
+  "attachmentFolderPath": ".raw",
+  "newFileLocation": "folder",
+  "newFileFolderPath": "wiki",
+  "useMarkdownLinks": false,
+  "showUnsupportedFiles": true,
+  "readableLineLength": true
+}

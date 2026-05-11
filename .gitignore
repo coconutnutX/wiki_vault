@@ -1,0 +1,8 @@
+# .raw/ sources are immutable, but OK to track
+# .obsidian/ workspace config is user-specific
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/plugins/
+.obsidian/community-plugins.json
+.obsidian/core-plugins.json
+.obsidian/core-plugins-migration.json
