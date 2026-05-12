@@ -1,0 +1,270 @@
+{
+  "workspaces": {
+    "局部": {
+      "main": {
+        "id": "91e2ee8cb9f4fbec",
+        "type": "split",
+        "children": [
+          {
+            "id": "225b2076ee19ef3a",
+            "type": "tabs",
+            "dimension": 71.4968152866242,
+            "children": [
+              {
+                "id": "939a15f4c26f7153",
+                "type": "leaf",
+                "state": {
+                  "type": "markdown",
+                  "state": {
+                    "file": "wiki/hot.md",
+                    "mode": "preview",
+                    "source": false
+                  },
+                  "icon": "lucide-file",
+                  "title": "hot"
+                },
+                "group": "31eb2a10f13f6a92"
+              }
+            ]
+          },
+          {
+            "id": "e0b52911402bbdbe",
+            "type": "split",
+            "dimension": 28.503184713375795,
+            "children": [
+              {
+                "id": "7dc360a6568c1ebb",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "7b43aa2587315459",
+                    "type": "leaf",
+                    "state": {
+                      "type": "localgraph",
+                      "state": {
+                        "file": "wiki/hot.md",
+                        "options": {
+                          "collapse-filter": true,
+                          "search": "",
+                          "localJumps": 3,
+                          "localBacklinks": true,
+                          "localForelinks": true,
+                          "localInterlinks": false,
+                          "showTags": false,
+                          "showAttachments": false,
+                          "hideUnresolved": false,
+                          "collapse-color-groups": true,
+                          "colorGroups": [],
+                          "collapse-display": true,
+                          "showArrow": false,
+                          "textFadeMultiplier": 0,
+                          "nodeSizeMultiplier": 1,
+                          "lineSizeMultiplier": 1,
+                          "collapse-forces": true,
+                          "centerStrength": 0.518713248970312,
+                          "repelStrength": 10,
+                          "linkStrength": 1,
+                          "linkDistance": 250,
+                          "scale": 1,
+                          "close": true
+                        }
+                      },
+                      "icon": "lucide-git-fork",
+                      "title": "hot 的关系图"
+                    },
+                    "group": "31eb2a10f13f6a92"
+                  }
+                ]
+              },
+              {
+                "id": "b9f809354fd72d53",
+                "type": "tabs",
+                "children": [
+                  {
+                    "id": "0fae79b6e18e3cfd",
+                    "type": "leaf",
+                    "state": {
+                      "type": "outline",
+                      "state": {
+                        "file": "wiki/hot.md",
+                        "followCursor": false,
+                        "showSearch": false,
+                        "searchQuery": ""
+                      },
+                      "icon": "lucide-list",
+                      "title": "hot 的大纲"
+                    },
+                    "group": "31eb2a10f13f6a92"
+                  }
+                ]
+              }
+            ],
+            "direction": "horizontal"
+          }
+        ],
+        "direction": "vertical"
+      },
+      "left": {
+        "id": "daea838907f82173",
+        "type": "split",
+        "children": [
+          {
+            "id": "a6e44774a8a78b63",
+            "type": "tabs",
+            "children": [
+              {
+                "id": "0a72fe2f1738d607",
+                "type": "leaf",
+                "state": {
+                  "type": "file-explorer",
+                  "state": {
+                    "sortOrder": "alphabetical",
+                    "autoReveal": false
+                  },
+                  "icon": "lucide-folder-closed",
+                  "title": "文件列表"
+                }
+              },
+              {
+                "id": "ebd1b5d675259425",
+                "type": "leaf",
+                "state": {
+                  "type": "search",
+                  "state": {
+                    "query": "",
+                    "matchingCase": false,
+                    "explainSearch": false,
+                    "collapseAll": false,
+                    "extraContext": false,
+                    "sortOrder": "alphabetical"
+                  },
+                  "icon": "lucide-search",
+                  "title": "搜索"
+                }
+              },
+              {
+                "id": "aacb6fe90585fe8a",
+                "type": "leaf",
+                "state": {
+                  "type": "bookmarks",
+                  "state": {},
+                  "icon": "lucide-bookmark",
+                  "title": "书签"
+                }
+              }
+            ]
+          }
+        ],
+        "direction": "horizontal",
+        "width": 200
+      },
+      "right": {
+        "id": "1e80b105e77398f9",
+        "type": "split",
+        "children": [
+          {
+            "id": "28f314fd7fe7979b",
+            "type": "tabs",
+            "children": [
+              {
+                "id": "3677b93337c1755d",
+                "type": "leaf",
+                "state": {
+                  "type": "backlink",
+                  "state": {
+                    "file": "wiki/index.md",
+                    "collapseAll": false,
+                    "extraContext": false,
+                    "sortOrder": "alphabetical",
+                    "showSearch": false,
+                    "searchQuery": "",
+                    "backlinkCollapsed": false,
+                    "unlinkedCollapsed": true
+                  },
+                  "icon": "links-coming-in",
+                  "title": "index 的反向链接列表"
+                }
+              },
+              {
+                "id": "0c3d1d3dad62d2c8",
+                "type": "leaf",
+                "state": {
+                  "type": "outgoing-link",
+                  "state": {
+                    "file": "wiki/index.md",
+                    "linksCollapsed": false,
+                    "unlinkedCollapsed": true
+                  },
+                  "icon": "links-going-out",
+                  "title": "index 的出链列表"
+                }
+              },
+              {
+                "id": "7a1dc447605dd6ac",
+                "type": "leaf",
+                "state": {
+                  "type": "tag",
+                  "state": {
+                    "sortOrder": "frequency",
+                    "useHierarchy": true,
+                    "showSearch": false,
+                    "searchQuery": ""
+                  },
+                  "icon": "lucide-tags",
+                  "title": "标签"
+                }
+              },
+              {
+                "id": "5cd43ca2cb698b55",
+                "type": "leaf",
+                "state": {
+                  "type": "all-properties",
+                  "state": {
+                    "sortOrder": "frequency",
+                    "showSearch": false,
+                    "searchQuery": ""
+                  },
+                  "icon": "lucide-archive",
+                  "title": "添加笔记属性"
+                }
+              },
+              {
+                "id": "065a269895de9d23",
+                "type": "leaf",
+                "state": {
+                  "type": "outline",
+                  "state": {
+                    "file": "wiki/index.md",
+                    "followCursor": false,
+                    "showSearch": false,
+                    "searchQuery": ""
+                  },
+                  "icon": "lucide-list",
+                  "title": "index 的大纲"
+                }
+              }
+            ]
+          }
+        ],
+        "direction": "horizontal",
+        "width": 300,
+        "collapsed": true
+      },
+      "left-ribbon": {
+        "hiddenItems": {
+          "switcher:打开快速切换": false,
+          "graph:查看关系图谱": false,
+          "canvas:新建白板": false,
+          "daily-notes:打开/创建今天的日记": false,
+          "templates:插入模板": false,
+          "command-palette:打开命令面板": false,
+          "bases:新建数据库": false,
+          "workspaces:管理工作区布局": false
+        }
+      },
+      "active": "939a15f4c26f7153",
+      "mtime": "2026-05-11T16:32:41+08:00"
+    }
+  },
+  "active": "局部"
+}

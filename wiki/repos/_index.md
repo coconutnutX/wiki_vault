@@ -10,7 +10,6 @@ External repositories researched for architecture, patterns, and design decision
 
 | Repo | URL | Language | Key Takeaway | Status |
 |------|-----|----------|-------------|--------|
-| [[OpenClaw MEMORY.md Implementation]] | github.com/openclaw/openclaw | TypeScript | MEMORY.md 源码级实现：写入触发、读取路径、截断算法 | active |
 | [[OpenClaw MEMORY.md Lifecycle]] | github.com/openclaw/openclaw | TypeScript | MEMORY.md 完整生命周期：写入/读取/截断/去重/双重身份设计张力 | active |
 | [[OpenClaw Memory System Overview]] | github.com/openclaw/openclaw | TypeScript | 双插件架构（memory-core vs memory-lancedb）、槽位系统、复刻要点 | active |
 | [[OpenClaw Memory Backend Comparison]] | github.com/openclaw/openclaw | TypeScript | memory-core vs memory-lancedb 后端差异：SQLite 索引层、Honcho 未实现 | active |
