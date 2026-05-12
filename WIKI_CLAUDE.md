@@ -39,6 +39,8 @@ vault/
 - wiki/log.md is append-only: never edit past entries
 - New log entries go at the TOP of the file
 - **Every directory's _index.md must be updated when pages are added/removed.** This applies recursively: if you add a page to wiki/decisions/, update wiki/decisions/_index.md AND wiki/index.md
+- **Inline wikilinks at the actual mention point in body text.** Do not append "Related Pages" sections at the end. Cross-page discovery is handled by _index.md.
+- **Do not commit & push on every edit.** Only when the user explicitly asks.
 
 ## Operations
 
