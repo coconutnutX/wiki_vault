@@ -319,6 +319,41 @@ Sweep 开始
 
 ---
 
+## 七点五、存储增长：无自动清理机制
+
+`short-term-recall.json` 和 `phase-signals.json` **没有自动清理机制**。代码中不存在任何 pruning、eviction、TTL 或 size cap 逻辑。
+
+### 已晋升条目的处理
+
+条目被 Deep Phase 晋升后会设置 `promotedAt` 字段，但**不会被删除**。它们只是被排除在后续晋升候选之外：
+
+```typescript
+// short-term-promotion.ts:1241-1243 — 读取时过滤已晋升条目
+if (!includePromoted && entry.promotedAt) {
+  continue;
+}
+
+// short-term-promotion.ts:1579-1581 — 晋升候选筛选
+if (candidate.promotedAt) {
+  return false;
+}
+```
+
+### 信号字段的有限约束
+
+虽然存储本身无上限，但部分信号字段有窗口约束（`short-term-promotion.ts:136-142`）：
+
+- `queryHashes`：最多 32 个（超出时 FIFO 裁剪）
+- `recallDays`：最多 16 天（超出时 FIFO 裁剪）
+
+这两个约束限制的是单条目内的数组大小，不是存储的总条目数。
+
+### 影响评估
+
+在正常使用中，短期召回条目的增长速度受限于 `memory_search` 的调用频率和 Dreaming sweep 的写入频率。每个唯一的内容片段对应一个条目（通过 `claimHash` 去重），已晋升条目虽不清理但不再产生新信号。长期运行时 `short-term-recall.json` 会持续增大，目前只能通过手动删除 `.dreams/` 目录重置。
+
+---
+
 ## 八、关键代码索引
 
 | 功能 | 文件 | 行号 |
@@ -341,3 +376,5 @@ Sweep 开始
 | .dreams/ 路径常量 | `extensions/memory-core/src/short-term-promotion.ts` | 30-32 |
 | Grounded Backfill CLI | `extensions/memory-core/src/cli.runtime.ts` | — |
 | Dream Diary 生成 | `extensions/memory-core/src/dreaming-narrative.ts` | — |
+| 已晋升条目过滤 | `extensions/memory-core/src/short-term-promotion.ts` | 1241-1243, 1579-1581 |
+| 信号字段窗口约束 | `extensions/memory-core/src/short-term-promotion.ts` | 136-142 |

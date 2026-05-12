@@ -31,7 +31,7 @@ related:
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                        对话进行中                                       │
 │                                                                         │
-│  ③ memory_search：搜索索引中的 MEMORY.md 片段                          │
+│  ③ memory_search：搜索索引中的 MEMORY.md / memory/*.md 片段             │
 │  ④ memory_get：精确读取 MEMORY.md 指定行                               │
 │  ⑤ Agent 手动编辑：可增/删/改 MEMORY.md 内容                           │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -263,15 +263,17 @@ MEMORY.md 内容加载后，注入 prompt 前需经过截断。
 
 **索引过程**：
 ```
-MEMORY.md 内容
+MEMORY.md + memory/*.md 内容
     ↓ 分块（~400 token, 80 token 重叠）
     ↓ 提取 embedding
     ↓ 存入 SQLite
 索引条目：{path, startLine, endLine, snippet, embedding}
 ```
 
+SQLite 不仅索引 MEMORY.md，也索引所有 `memory/*.md` 每日笔记。两者共享相同的分块和 embedding 流程，都可以通过 `memory_search` 搜索到。文件监听同时覆盖这两个路径（`manager-sync-ops.ts:423-426`）。
+
 **文件监听**：
-- 使用 chokidar 监听 MEMORY.md 变更
+- 使用 chokidar 监听 MEMORY.md 和 memory/ 目录变更
 - 1.5 秒防抖后触发重新索引
 - embedding provider/model/chunking 配置变化时全量重建
 
@@ -342,7 +344,7 @@ memory/YYYY-MM-DD.md（今天 + 昨天）
 ### 搜索索引分块
 
 ```
-MEMORY.md 内容
+MEMORY.md + memory/*.md 内容
     ↓ 分块器
 ~400 token/块，80 token 重叠
     ↓ FTS5 索引

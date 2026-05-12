@@ -45,7 +45,7 @@ OpenClaw 的 memory 系统以插件槽位为核心。系统提供一个 `plugins
 
 ## 2. MEMORY.md Lifecycle
 
-MEMORY.md 是 memory-core 架构的核心文件，所有长期记忆的原文都存储在这里。SQLite 只是对它的分块索引（~400 token/块），不存储完整内容。完整分析见 [[OpenClaw MEMORY.md Lifecycle]]。
+MEMORY.md 是 memory-core 架构的核心文件，所有长期记忆的原文都存储在这里。SQLite 对 MEMORY.md **和** `memory/*.md` 每日笔记都进行分块索引（~400 token/块），不存储完整内容——两者都会被 `memory_search` 搜索到。完整分析见 [[OpenClaw MEMORY.md Lifecycle]]。
 
 ### Write Paths
 
@@ -65,7 +65,7 @@ MEMORY.md 有四条读取路径，用途和截断策略各不相同。
 
 **Bootstrap 加载**是最重要的读取路径。每次新会话启动时，系统按固定顺序加载 8 个 bootstrap 文件（AGENTS.md → SOUL.md → ... → MEMORY.md），MEMORY.md 排在最后。这意味着它的预算分配最不利——如果前 7 个文件占用了大部分预算，MEMORY.md 可能被大幅截断甚至完全跳过。截断算法是机械的 75% head + 25% tail（单文件上限 12,000 chars，所有文件总计 60,000 chars），不选择"最重要的"内容。([[OpenClaw MEMORY.md Lifecycle#1. Bootstrap 加载（每次会话启动）]] 和 [[OpenClaw MEMORY.md Lifecycle#2. 注入时截断]]。
 
-**搜索索引**通过文件监听自动维护。MEMORY.md 的变更触发分块和重索引，embedding 和 BM25 关键词索引都保留完整内容的分块，不受 prompt 预算限制。([[OpenClaw MEMORY.md Lifecycle#3. 搜索索引]]。
+**搜索索引**通过文件监听自动维护。MEMORY.md 和 `memory/*.md` 的变更都会触发分块和重索引，embedding 和 BM25 关键词索引都保留完整内容的分块，不受 prompt 预算限制。([[OpenClaw MEMORY.md Lifecycle#3. 搜索索引]]。
 
 **memory_get** 工具直接从文件系统读取指定行范围，不经过 SQLite，返回完整文本。([[OpenClaw MEMORY.md Lifecycle#4. memory_get 精确读取]]。
 
@@ -101,6 +101,10 @@ Phase reinforcement 是一个巧妙的设计：即使一个条目没有足够的
 
 手动触发的 `openclaw memory rem-backfill` 可以从历史 `memory/*.md` 中重新提取可能被遗漏的长期记忆候选，写入短期召回存储（`groundedCount` 递增）。候选不直接晋升，而是等待下一次普通 Dreaming sweep 的 Deep Phase 评估。不需要时可以 `--rollback` 清除。([[OpenClaw Dreaming Mechanism#六、Grounded Backfill（历史回溯）]])。
 
+### 存储增长：无自动清理
+
+`short-term-recall.json` 和 `phase-signals.json` 没有自动清理机制。已晋升条目设置 `promotedAt` 后永久保留，只是被排除在后续晋升候选之外。单条目内的 `queryHashes`（最多 32 个）和 `recallDays`（最多 16 天）有 FIFO 窗口约束，但存储的总条目数无上限。长期运行时 `.dreams/` 会持续增大。([[OpenClaw Dreaming Mechanism#七点五、存储增长：无自动清理机制]])。
+
 ---
 
 ## 4. Common Misconceptions
@@ -123,15 +127,11 @@ memory-core 中 SQLite 不存储记忆内容，只存 `{path, line_range, embedd
 
 名称的相似性（DREAMS.md vs Dreaming）容易造成误解。实际上 Dreaming 有两个不同的输出目标：MEMORY.md 保存 Deep Phase 的长期记忆晋升结果（agent 启动时通过 bootstrap 加载），DREAMS.md 保存叙述性的 Dream Diary（仅供人类审查，不进入 agent prompt）。DREAMS.md 是副产品日志，MEMORY.md 才是核心产出。([[OpenClaw Memory Research Corrections#误解九（2026-05-12 新增）：Dreaming 只写入 DREAMS.md，不写入 MEMORY.md]]。
 
-### 4.5 Dreaming 阈值默认值容易记错
-
-正确的默认值是 `minScore=0.75, minRecallCount=3, minUniqueQueries=2`（代码 `short-term-promotion.ts:24-26`）。这些值比直觉预期的更保守——晋升门槛更高、需要更多次被 recall 才能晋升。([[OpenClaw Memory Research Corrections#误解五（2026-05-12 新增）：Dreaming 阈值默认值混淆]]。
-
-### 4.6 Flush 和 Dreaming 都是 memory-core 独占功能
+### 4.5 Flush 和 Dreaming 都是 memory-core 独占功能
 
 Flush 机制（`extensions/memory-core/src/flush-plan.ts`）和 Dreaming 都是 memory-core 的内部功能，不是框架核心提供的。替换为 memory-lancedb 后，compaction 前的自动保存和短期→长期记忆晋升都不可用。memory-lancedb 用自己的 `auto-capture` hook（agent_end 时触发）替代，但机制完全不同。([[OpenClaw Memory Research Corrections#误解七（2026-05-12 新增）：Flush 机制的归属]]。
 
-### 4.7 MEMORY.md 的双重身份与设计局限
+### 4.6 MEMORY.md 的双重身份与设计局限
 
 MEMORY.md 同时承担"完整存储"和"prompt 注入"两个职责，这造成了内在的设计张力。Dreaming 不断追加内容，但 bootstrap 注入有严格的 prompt 预算限制。文件增长到超出预算时，截断算法只机械地保留头部 75% 和尾部 25%，中间内容被丢弃——即使这些中间内容可能是重要的。SQLite 索引虽然保留了完整内容的分块，但 bootstrap 注入路径不走索引。
 

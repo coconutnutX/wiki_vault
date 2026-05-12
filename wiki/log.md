@@ -10,6 +10,8 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-12
 
+- **[update]** OpenClaw Dreaming Mechanism → 补充存储增长分析：无自动清理机制、已晋升条目永久保留、信号字段窗口约束
+- **[update]** OpenClaw MEMORY.md Lifecycle, OpenClaw Memory for Developers → 修正索引范围描述：SQLite 同时索引 MEMORY.md 和 memory/*.md（非仅 MEMORY.md）
 - **[save]** OpenClaw Memory Research Corrections → wiki/repos/ (调研误解与纠正，含 8 个误解+方法论反思，解决 3 个待确认问题)
 - **[save]** OpenClaw Memory Data Flow → wiki/repos/ (数据流时间点分析，补充 Flush 依赖说明)
 - **[save]** OpenClaw Memory Architecture Analysis → wiki/repos/ (架构与代码对应，修正阈值错误 0.5→0.75, 2→3)
