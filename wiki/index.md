@@ -24,14 +24,15 @@ Master catalog of all wiki pages. Updated on every ingest.
 <!-- External deps, versions, risk assessment -->
 
 ## Flows
-- [[OpenClaw Memory Data Flow]] — 数据流时间点分析：组合可行性、检索/存储时机、配置示例
+<!-- Data flows, request paths, auth flows -->
 
 ## Repos
 - [[OpenClaw Memory System Overview]] — 系统综合介绍：双插件架构、槽位系统、复刻要点
 - [[OpenClaw Memory Backend Comparison]] — 后端差异分析：memory-core vs memory-lancedb、SQLite 索引层
 - [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应：插件系统、Dreaming、批判性分析
-- [[OpenClaw Memory Data Flow]] — 数据流时间点分析（同时列于 Flows）
+- [[OpenClaw Memory Data Flow]] — 数据流时间点：组合可行性、检索/存储时机、配置示例
 - [[OpenClaw MEMORY.md Lifecycle]] — MEMORY.md 完整生命周期：写入/读取/截断的统一视图
+- [[OpenClaw Dreaming Mechanism]] — Dreaming 三阶段数据流：recall store 变化、评分算法、phase reinforcement
 - [[OpenClaw Memory Research Corrections]] — 调研误解与纠正记录（8 个误解+方法论反思）
 
 ## Entities

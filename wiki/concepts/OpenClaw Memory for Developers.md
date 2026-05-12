@@ -73,35 +73,65 @@ MEMORY.md 有四条读取路径，用途和截断策略各不相同。
 
 ---
 
-## 3. Common Misconceptions
+## 3. Dreaming Mechanism
+
+Dreaming 是 memory-core 的后台记忆巩固系统，通过三阶段（Light → REM → Deep）从短期召回中筛选高信号条目晋升到 MEMORY.md。完整分析见 [[OpenClaw Dreaming Mechanism]]。
+
+### Signal Collection: `.dreams/` 短期召回存储
+
+Dreaming 的输入来自 `memory/.dreams/short-term-recall.json`，这是一个持续积累的 JSON 文件。每当 `memory_search` 被调用时，搜索结果会被异步记录（best-effort，不阻塞搜索返回）：`recallCount` 递增，`totalScore` 累加本次分数，`queryHashes` 追加查询哈希用于去重，`recallDays` 追加当天日期。每个条目还有 `dailyCount`（Light Phase 从每日笔记发现的次数）和 `groundedCount`（Grounded Backfill 记录的次数），这三种信号源共同构成 Deep Phase 评分中的 frequency 信号。([[OpenClaw Dreaming Mechanism#二、短期召回存储（memory/.dreams/）]] 和 [[OpenClaw Dreaming Mechanism#二、信号如何进入 .dreams/]])。
+
+### Light Phase: 收集 + 暂存
+
+Light Phase 从近期 `memory/*.md` 每日笔记和 `session-corpus/` 会话 transcript 中提取片段，写入短期召回存储（`dailyCount` 递增）。它不做评分或晋升，只是把分散在各处的短期信号汇聚到统一的召回存储中。同时更新 `phase-signals.json` 中每个条目的 `lightHits` 计数。([[OpenClaw Dreaming Mechanism#三、Light Phase（收集 + 暂存）]])。
+
+### REM Phase: 反思主题
+
+REM Phase 分析召回条目中 `conceptTags` 的分布模式。如果一个概念标签在多个不同条目中重复出现，说明它是跨条目的主题。REM Phase 识别这些模式、选择"候选真相"（confidence >= 0.45），更新 `phase-signals.json` 的 `remHits`。它同样不写入 MEMORY.md，只为 Deep Phase 的评分提供额外的加成信号。([[OpenClaw Dreaming Mechanism#四、REM Phase（反思模式 + 主题）]])。
+
+### Deep Phase: 评分 + 晋升
+
+Deep Phase 是唯一写入 MEMORY.md 的阶段（写入细节见上文 Section 2 Write Paths）。它的核心是评分算法：六个基础信号（frequency 0.24、relevance 0.30、diversity 0.15、recency 0.15、consolidation 0.10、conceptual 0.06）加上 phase reinforcement 加成（Light 命中最多加 0.06，REM 命中最多加 0.09，都有 14 天半衰期衰减）。总分通过阈值门控后（score >= 0.75, signalCount >= 3, uniqueQueries >= 2），经过重水化验证，最终追加到 MEMORY.md。([[OpenClaw Dreaming Mechanism#五、Deep Phase（评分 + 晋升）]])。
+
+### Phase Reinforcement 的设计意图
+
+Phase reinforcement 是一个巧妙的设计：即使一个条目没有足够的 organic recall（被用户搜索命中），通过 Dreaming 自身的重复访问（Light/REM 阶段反复处理）也可以积累分数达到晋升门槛。这意味着 Dreaming 不只是被动等待用户触发 recall，而是主动从每日笔记和会话记录中挖掘值得长期保留的信息。但加成上限较低（0.06 + 0.09 = 0.15），不会让劣质条目通过重复刷分晋升。([[OpenClaw Dreaming Mechanism#五、Deep Phase（评分 + 晋升）]])。
+
+### Grounded Backfill: 历史回溯
+
+手动触发的 `openclaw memory rem-backfill` 可以从历史 `memory/*.md` 中重新提取可能被遗漏的长期记忆候选，写入短期召回存储（`groundedCount` 递增）。候选不直接晋升，而是等待下一次普通 Dreaming sweep 的 Deep Phase 评估。不需要时可以 `--rollback` 清除。([[OpenClaw Dreaming Mechanism#六、Grounded Backfill（历史回溯）]])。
+
+---
+
+## 4. Common Misconceptions
 
 以下是调研过程中实际踩过的坑，每个都曾导致文档中出现错误描述。完整记录见 [[OpenClaw Memory Research Corrections]]。
 
-### 3.1 memory-core 和 memory-lancedb 是并列插件，不是同一层的后端
+### 4.1 memory-core 和 memory-lancedb 是并列插件，不是同一层的后端
 
 最容易犯的错误是把 QMD、Honcho、LanceDB 都当成同一层级的"memory backend"。实际上 QMD/Honcho 是 memory-core **内部的搜索后端**（替换 SQLite 索引引擎），而 memory-lancedb 是与 memory-core **并列的 Memory 插件**（通过 `plugins.slots.memory` 槽位二选一）。配置层面也有区分：`plugins.slots.memory` 选择插件，`memory.backend` 选择 memory-core 内部的搜索后端。([[OpenClaw Memory Research Corrections#误解四：QMD 和 Honcho 与 memory-lancedb 同级]]。
 
-### 3.2 MEMORY.md 只在 memory-core 中存在
+### 4.2 MEMORY.md 只在 memory-core 中存在
 
 使用 memory-lancedb 时完全没有 MEMORY.md。所有记忆存储在 LanceDB 的 `MemoryEntry` 表中（`{id, text, vector, category, importance}`），搜索返回完整条目而非文件片段引用。([[OpenClaw Memory Research Corrections#误解二：MEMORY.md 始终存在，是所有 Memory 插件的核心]]。
 
-### 3.3 SQLite 是索引层，不是存储层
+### 4.3 SQLite 是索引层，不是存储层
 
 memory-core 中 SQLite 不存储记忆内容，只存 `{path, line_range, embedding}` 索引引用。实际内容始终在 MEMORY.md 和 `memory/*.md` 文件中。`memory_search` 返回的 `snippet` 字段包含文本摘要，但完整内容仍需 `memory_get` 从文件系统读取。([[OpenClaw Memory Research Corrections#误解三：SQLite 是 memory-core 的存储层]]。
 
-### 3.4 Dreaming 的写入目标是 MEMORY.md，不只是 DREAMS.md
+### 4.4 Dreaming 的写入目标是 MEMORY.md，不只是 DREAMS.md
 
 名称的相似性（DREAMS.md vs Dreaming）容易造成误解。实际上 Dreaming 有两个不同的输出目标：MEMORY.md 保存 Deep Phase 的长期记忆晋升结果（agent 启动时通过 bootstrap 加载），DREAMS.md 保存叙述性的 Dream Diary（仅供人类审查，不进入 agent prompt）。DREAMS.md 是副产品日志，MEMORY.md 才是核心产出。([[OpenClaw Memory Research Corrections#误解九（2026-05-12 新增）：Dreaming 只写入 DREAMS.md，不写入 MEMORY.md]]。
 
-### 3.5 Dreaming 阈值默认值容易记错
+### 4.5 Dreaming 阈值默认值容易记错
 
 正确的默认值是 `minScore=0.75, minRecallCount=3, minUniqueQueries=2`（代码 `short-term-promotion.ts:24-26`）。这些值比直觉预期的更保守——晋升门槛更高、需要更多次被 recall 才能晋升。([[OpenClaw Memory Research Corrections#误解五（2026-05-12 新增）：Dreaming 阈值默认值混淆]]。
 
-### 3.6 Flush 和 Dreaming 都是 memory-core 独占功能
+### 4.6 Flush 和 Dreaming 都是 memory-core 独占功能
 
 Flush 机制（`extensions/memory-core/src/flush-plan.ts`）和 Dreaming 都是 memory-core 的内部功能，不是框架核心提供的。替换为 memory-lancedb 后，compaction 前的自动保存和短期→长期记忆晋升都不可用。memory-lancedb 用自己的 `auto-capture` hook（agent_end 时触发）替代，但机制完全不同。([[OpenClaw Memory Research Corrections#误解七（2026-05-12 新增）：Flush 机制的归属]]。
 
-### 3.7 MEMORY.md 的双重身份与设计局限
+### 4.7 MEMORY.md 的双重身份与设计局限
 
 MEMORY.md 同时承担"完整存储"和"prompt 注入"两个职责，这造成了内在的设计张力。Dreaming 不断追加内容，但 bootstrap 注入有严格的 prompt 预算限制。文件增长到超出预算时，截断算法只机械地保留头部 75% 和尾部 25%，中间内容被丢弃——即使这些中间内容可能是重要的。SQLite 索引虽然保留了完整内容的分块，但 bootstrap 注入路径不走索引。
 

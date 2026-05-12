@@ -23,7 +23,7 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-11
 
-- **[save]] Workspace Environment → wiki/entities/ (WSL2 工作环境、项目布局、conda py11 环境、wiki-vault 路径)
+- **[save]** Workspace Environment → wiki/entities/ (WSL2 工作环境、项目布局、conda py11 环境、wiki-vault 路径)
 - **[save]** OpenClaw MEMORY.md Implementation → wiki/repos/ (源码级实现分析，含写入触发、读取路径、截断算法、关键文件行号)
 - **[update]** claude-obsidian Plugin Setup Notes — 补充插件数据存储路径和跨仓库访问方案
 - **[save]** claude-obsidian Plugin Setup Notes → wiki/meta/ (插件安装过程问题记录)

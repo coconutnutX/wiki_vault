@@ -1,15 +1,18 @@
 ---
 type: source
-title: "OpenClaw Memory System Overview"
+title: OpenClaw Memory System Overview
 status: active
-tags: [openclaw, memory, plugin, architecture]
+tags:
+  - openclaw
+  - memory
+  - plugin
+  - architecture
 created: 2026-05-12
 updated: 2026-05-12
 related:
   - "[[OpenClaw Memory Backend Comparison]]"
   - "[[OpenClaw Memory Architecture Analysis]]"
   - "[[OpenClaw Memory Data Flow]]"
-  - "[[OpenClaw Memory Research Corrections]]"
   - "[[OpenClaw MEMORY.md Implementation]]"
   - "[[OpenClaw Memory System]]"
 ---
