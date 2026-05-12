@@ -172,7 +172,27 @@ await fs.writeFile(memoryPath,
 
 最终调用 `applyShortTermPromotions`，与 Dreaming Deep Phase 完全相同。
 
-### 4. Flush 期间：明确禁止写入
+### 4. Flush 期间：明确禁止写入 MEMORY.md
+
+**Flush 是什么**：compaction 前的自动保存机制。当对话上下文接近 compaction 阈值（即将被摘要压缩）时，系统插入一个**静默的 agent turn**，提醒 agent 把重要内容保存到文件中，避免压缩导致信息丢失。
+
+```
+对话上下文接近 compaction 阈值
+    ↓
+插入隐藏的 flush turn
+    ↓
+Agent 决定哪些内容值得保存
+    ↓
+写入 memory/YYYY-MM-DD.md（追加，只写每日笔记）
+    ↓
+MEMORY.md 在此期间被视为只读，禁止修改
+```
+
+**为什么禁止写 MEMORY.md**：Flush 发生在对话中途，如果允许直接改 MEMORY.md，可能导致不一致。因此只允许向每日笔记追加内容。
+
+**触发条件**（`flush-plan.ts`）：
+- 距 compaction 阈值 4000 tokens 时触发
+- 或 transcript 达到 2MB 时强制触发
 
 **代码**：`extensions/memory-core/src/flush-plan.ts:17-18`
 
@@ -388,22 +408,50 @@ section += `<!-- openclaw-memory-promotion:${candidate.key} -->\n`;
 
 ---
 
-## 五、MEMORY.md 的"双重身份"
+## 五、MEMORY.md 的"双重身份"与设计张力
 
-MEMORY.md 有两个不同的消费者，对它的期望不同：
+MEMORY.md 身兼两个职责，这是它的核心设计张力：
+
+| 职责 | 期望 | 矛盾 |
+|------|------|------|
+| **完整存储** | 所有记忆原文都在此文件中，不丢失 | 文件不断增长 |
+| **Prompt 注入** | 紧凑、高信号，在预算内提供最有价值的上下文 | 预算有限，只能机械地 head+tail |
+
+SQLite 索引虽然通过分块保留了完整内容的 embedding，但 **bootstrap 注入路径不走索引**，只读原始文件并机械截断。截断算法不选择"最重要的"内容，而是保留头部 75% 和尾部 25%，中间部分直接丢弃。
+
+### 当前的妥协方案
+
+OpenClaw 没有在架构层面解决这个问题，而是把"热信息摘要"的职责交给 Agent 的判断力：
+
+> "Treat that as a signal to move detailed material back into memory/*.md, keep only the durable summary in MEMORY.md."
+
+两个消费者对 MEMORY.md 的期望互相冲突：
 
 | 消费者 | 期望 | 截断影响 |
 |--------|------|----------|
 | **Bootstrap prompt** | 紧凑、高信号的长期摘要 | 文件过大时被截断，丢失中间内容 |
 | **搜索索引** | 完整、详细的记忆内容 | 分块索引，不丢失任何内容 |
 
-这导致一个设计矛盾：
-- **Agent 手动编辑**倾向于精简 MEMORY.md（保持可 bootstrap 加载的紧凑度）
+- **Agent 手动编辑**倾向于精简 MEMORY.md（保持可 bootstrap 加加载的紧凑度）
 - **Dreaming 自动晋升**倾向于追加内容（不删除已有条目）
-- 文件增长到超出 bootstrap 预算时，截断可能导致中间内容丢失
+- 文件增长到超出 bootstrap 预算时，截断导致中间内容丢失
 
-官方文档建议：
-> "Treat that as a signal to move detailed material back into memory/*.md, keep only the durable summary in MEMORY.md"
+### 理论上的改进方向
+
+将存储和注入拆分为独立层：
+
+```
+当前设计（一个文件两个用途）：
+MEMORY.md ← 完整存储 + bootstrap 注入（截断）
+
+拆分设计：
+memory-store.md      ← 完整存储（供搜索索引、memory_get）
+                       不受 prompt 预算限制，可无限增长
+memory-hot.md        ← 精选摘要（供 bootstrap 注入）
+                       始终控制在预算内，不需要截断
+```
+
+这样 `memory-hot.md` 可以始终控制在预算内，不需要截断算法；而 `memory-store` 不受 prompt 预算限制，完整保留所有记忆。两者之间的关系类似于 CPU 缓存与主存：热数据在缓存中，完整数据在主存中。
 
 ---
 
