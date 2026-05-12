@@ -1,23 +1,27 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-11T17:30:00
+updated: 2026-05-12T12:00:00
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-11. Saved detailed OpenClaw MEMORY.md code analysis.
+2026-05-12. Migrated 5 OpenClaw memory analysis docs to wiki with corrections.
 
 ## Key Recent Facts
-- OpenClaw MEMORY.md 写入有三个触发点：flush（→ daily notes）、dreaming promotion（→ MEMORY.md）、CLI 手动
-- 截断算法在 bootstrap.ts 中实现，75% head + 25% tail，单文件 12,000 chars 上限
-- claude-obsidian plugin skill 在非 vault CWD 下需要手动调用 `claude-obsidian:save`
+- OpenClaw 有两种并列 Memory 插件：memory-core（文件+SQLite）和 memory-lancedb（LanceDB），通过 plugins.slots.memory 互斥
+- Dreaming 和 Flush 都是 memory-core 功能，替换 memory-lancedb 后均不可用
+- Dreaming 阈值默认值：minScore=0.75, minRecallCount=3, minUniqueQueries=2（代码验证）
+- Honcho 仅见于官方文档描述，代码中未找到实现
+- memory_search 返回 snippet 文本摘要（不仅是引用），完整内容用 memory_get 从文件读取
+- Wiki vault: /mnt/c/Data/wiki-vault，workspace: /data/Workspace2
 
 ## Recent Changes
-- Created: [[OpenClaw MEMORY.md Implementation]] (repos) — 源码级分析，关联 [[OpenClaw Memory System]] (concepts)
-- Updated: wiki/repos/_index.md, wiki/index.md, wiki/log.md
+- Created: [[OpenClaw Memory System Overview]], [[OpenClaw Memory Backend Comparison]], [[OpenClaw Memory Architecture Analysis]], [[OpenClaw Memory Data Flow]], [[OpenClaw Memory Research Corrections]] (all in wiki/repos/)
+- Verified: 5 docs against official docs + local code, found 3 errors (threshold values, search result format, Honcho status)
+- Updated: wiki/index.md, wiki/log.md
 
 ## Active Threads
-- Vault 已就绪，可开始 ingest 其他仓库进行分析
-- 待研究：如何让 skill 在 wiki-vault 外也能自动工作
+- oG-Memory 主项目开发中
+- OpenClaw 文档迁移完成，原始文件待清理
