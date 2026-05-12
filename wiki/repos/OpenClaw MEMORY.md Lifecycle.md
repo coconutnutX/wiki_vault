@@ -518,10 +518,3 @@ memory-hot.md        ← 精选摘要（供 bootstrap 注入）
 
 ---
 
-### 相关 Wiki 页面
-
-- [[OpenClaw MEMORY.md Implementation]] — 写入/读取/截断的源码级分析
-- [[OpenClaw Memory System Overview]] — 系统综合介绍
-- [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应
-- [[OpenClaw Memory Data Flow]] — 数据流时间点
-- [[OpenClaw Memory Research Corrections]] — 调研误解与纠正（含重水化解释）

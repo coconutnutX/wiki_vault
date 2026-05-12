@@ -499,10 +499,3 @@ auto-capture：extensions/memory-lancedb/index.ts:1038
 | 所属插件 | memory-core | memory-core |
 | 替换影响 | 丢失 | 丢失 |
 
-### 相关 Wiki 页面
-
-- [[OpenClaw Memory System Overview]] — 系统综合介绍
-- [[OpenClaw Memory Backend Comparison]] — 后端差异分析
-- [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应
-- [[OpenClaw MEMORY.md Implementation]] — MEMORY.md 源码分析
-- [[OpenClaw Memory Research Corrections]] — 调研误解与纠正

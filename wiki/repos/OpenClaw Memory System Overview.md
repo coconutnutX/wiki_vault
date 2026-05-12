@@ -431,10 +431,3 @@ memory-core 插件
 | Memory 配置参考 | https://docs.openclaw.ai/reference/memory-config |
 | Gateway 配置参考 | https://docs.openclaw.ai/gateway/configuration-reference |
 
-### 相关 Wiki 页面
-
-- [[OpenClaw MEMORY.md Implementation]] — MEMORY.md 的写入/读取/截断源码分析
-- [[OpenClaw Memory System]] — 抽象设计模式概述
-- [[OpenClaw Memory Backend Comparison]] — 后端差异分析
-- [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应
-- [[OpenClaw Memory Data Flow]] — 数据流时间点分析

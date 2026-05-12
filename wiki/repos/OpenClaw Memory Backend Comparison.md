@@ -255,10 +255,3 @@ memory-lancedb 插件（完全独立）
 | SDK 搜索结果类型 | `packages/memory-host-sdk/src/host/types.ts:3` |
 | SDK 文件读取 | `packages/memory-host-sdk/src/host/read-file.ts:23` |
 
-### 相关 Wiki 页面
-
-- [[OpenClaw Memory System Overview]] — 系统综合介绍
-- [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应
-- [[OpenClaw Memory Data Flow]] — 数据流时间点
-- [[OpenClaw MEMORY.md Implementation]] — MEMORY.md 源码分析
-- [[OpenClaw Memory Research Corrections]] — 调研误解与纠正

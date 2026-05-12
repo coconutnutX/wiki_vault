@@ -912,11 +912,3 @@ api.on("before_prompt_build", handler, {
    - 人类可审查：输出到 DREAMS.md
    - 触发机制：建议只用 cron，简化 heartbeat 路径
 
-### 相关 Wiki 页面
-
-- [[OpenClaw Memory System Overview]] — 系统综合介绍
-- [[OpenClaw Memory Backend Comparison]] — 后端差异分析
-- [[OpenClaw Memory Data Flow]] — 数据流时间点
-- [[OpenClaw MEMORY.md Implementation]] — MEMORY.md 源码分析
-- [[OpenClaw Memory Research Corrections]] — 调研误解与纠正
-- [[OpenClaw Memory System]] — 抽象设计模式

@@ -507,11 +507,3 @@ for (const candidate of selected) {
 ~~3. **Memory Wiki 的定位**：是否只能与 memory-core 配合，还是也能与 memory-lancedb 配合？~~
 **部分确认**：官方文档说 memory-wiki "does not replace the active memory plugin"，它是独立的知识层，理论上可与任何 memory 插件配合。但具体实现细节待进一步验证。
 
-### 相关 Wiki 页面
-
-- [[OpenClaw Memory System Overview]] — 系统综合介绍
-- [[OpenClaw Memory Backend Comparison]] — 后端差异分析
-- [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应
-- [[OpenClaw Memory Data Flow]] — 数据流时间点
-- [[OpenClaw MEMORY.md Implementation]] — MEMORY.md 源码分析
-- [[OpenClaw Memory System]] — 抽象设计模式

@@ -15,7 +15,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 <!-- Reusable UI or functional components -->
 
 ## Decisions
-<!-- Architecture Decision Records (ADRs) -->
+- [[Wiki Linking Convention]] — 内联双向链接 + _index.md 索引，不在文末集中列出相关页面
 
 ## Meta
 - [[claude-obsidian Plugin Setup Notes]] — 插件安装、vault 搭建过程中的问题和解决方案

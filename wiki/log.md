@@ -16,6 +16,9 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 - **[save]** OpenClaw Memory Backend Comparison → wiki/repos/ (后端差异分析，补充 Honcho 未实现标注、Flush 归属)
 - **[save]** OpenClaw Memory System Overview → wiki/repos/ (综合介绍，修正搜索返回格式描述，补充双向链接)
 - **[save]** OpenClaw MEMORY.md Lifecycle → wiki/repos/ (MEMORY.md 完整生命周期：写入路径、读取路径、截断机制、去重)
+- **[decision]** Wiki Linking Convention → wiki/decisions/ (内联双向链接+_index索引，不在文末集中列出)
+- **[update]** repos/_index.md — 补充 6 个 OpenClaw 文档索引
+- **[cleanup]** 删除 6 个 OpenClaw 文档末尾的"相关 Wiki 页面"段落（改用 _index.md 索引）
 - **[verify]** 对照官方文档(6 URL)和本地代码验证 5 个 OpenClaw 分析文档的正确性
 
 ## 2026-05-11
