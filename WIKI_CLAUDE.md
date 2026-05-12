@@ -38,6 +38,7 @@ vault/
 - wiki/index.md is the master catalog: update on every ingest
 - wiki/log.md is append-only: never edit past entries
 - New log entries go at the TOP of the file
+- **Every directory's _index.md must be updated when pages are added/removed.** This applies recursively: if you add a page to wiki/decisions/, update wiki/decisions/_index.md AND wiki/index.md
 
 ## Operations
 
