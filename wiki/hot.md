@@ -1,27 +1,26 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-13T12:00:00
+updated: 2026-05-13T14:00:00
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-13. Added Memory Provenance research survey and OpenClaw Dreaming visualization.
+2026-05-13. Added oG-Memory extraction/storage analysis + Memory Provenance research.
 
 ## Key Recent Facts
-- **Memory Provenance** 是 agentic memory 中追踪记忆来源的核心问题，学术界主要术语：provenance、source attribution、grounding
-- MemORAI 的 turn-level provenance 最接近 transcript → structured memory 场景，TROVE 做句子级溯源（ACL 2025）
-- 实用方案：抽取时为每条记忆附加 `(source_id, span_start, span_end)` 元数据
-- OpenClaw 有两种并列 Memory 插件：memory-core（文件+SQLite）和 memory-lancedb（LanceDB），通过 plugins.slots.memory 互斥
-- Dreaming 和 Flush 都是 memory-core 功能，替换 memory-lancedb 后均不可用
+- **oG-Memory 抽取流程**: 两阶段 (Span Identification → Span Structuring)，支持 eager/lazy mode，dual-run 机制（默认 temp + temp=0）
+- **oG-Memory 存储流程**: PolicyRouter 策略路由 → ArchiveBuilder → SQLContextFS 原子写入 → Outbox 异步索引 (pgvector L0/L1/L2)
+- **oG-Memory Session Archive**: 原始消息完整存 session_archives.messages JSONB，不分块；抽取记忆存 context_nodes 三层分层
+- **Memory Provenance** 学术术语：provenance、source attribution、grounding。MemORAI turn-level provenance 最接近实际场景
 - Wiki vault: /mnt/c/Data/wiki-vault，workspace: /data/Workspace2
 
 ## Recent Changes
-- Created: [[Memory Provenance in Agentic Systems]] (wiki/concepts/) — 5 篇核心论文 + 3 篇综述 + 2 个实践项目
-- Created: [[OpenClaw Dreaming Mechanism Visualized]] (wiki/repos/) — Mermaid 可视化数据流
-- Updated: concepts/_index.md, wiki/index.md, wiki/log.md
+- Created: [[oG-Memory Extraction and Storage Analysis]] + [[oG-Memory Extraction and Storage Example]] (wiki/repos/) — 代码位置已验证，双向链接
+- Created: [[Memory Provenance in Agentic Systems]] (wiki/concepts/)
+- Deleted: /data/Workspace2/extraction_storage_analysis.md + extraction_storage_example.md (已迁入 wiki)
 
 ## Active Threads
 - oG-Memory 主项目开发中，记忆溯源是关键设计问题
-- OpenClaw 文档迁移完成
+- 记忆溯源与 oG-Memory 的 evidence_quote 字段天然关联

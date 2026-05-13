@@ -18,3 +18,8 @@ External repositories researched for architecture, patterns, and design decision
 | [[OpenClaw Memory Data Flow]] | github.com/openclaw/openclaw | TypeScript | 数据流时间点：组合可行性、检索/存储时机、配置示例 | active |
 | [[OpenClaw Memory Research Corrections]] | github.com/openclaw/openclaw | TypeScript | 调研误解与纠正（9 个误解 + 重水化解释 + 方法论反思） | active |
 | [[OpenClaw Dreaming Mechanism Visualized]] | github.com/openclaw/openclaw | TypeScript | Dreaming 机制 Mermaid 可视化：逐阶段读写数据流图 | active |
+| [[oG-Memory Extraction and Storage Analysis]] | local (oG-Memory) | Python | 抽取与存储模块架构：两阶段抽取、DB-first 存储、异步索引、数据流追踪 | active |
+| [[oG-Memory Extraction and Storage Example]] | local (oG-Memory) | Python | 抽取与存储实例详解：从原始对话到持久化的完整数据流示例 | active |
+| [[oG-Memory Session Archive vs Extracted Memory]] | local (oG-Memory) | Python | Session Archive 与抽取记忆串行执行、数据独立、仅 extraction_summary 去重 | active |
+| [[oG-Memory Provenance Design Analysis]] | local (oG-Memory) | Python | 记忆溯源三方案初版对比（Metadata 注入/Provenance 表/Schema-driven） | active |
+| [[oG-Memory Schema-Driven Provenance Design]] | local (oG-Memory) | Python | Schema-driven 溯源深入设计：Provenance ID、SourceRef、通用组件、四阶段规划 | active |

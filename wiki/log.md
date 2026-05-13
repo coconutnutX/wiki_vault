@@ -10,6 +10,13 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-13
 
+- **[save]** oG-Memory Provenance Design Analysis + Schema-Driven Provenance Design → wiki/repos/ (溯源方案设计：初版三方案对比 + Schema-driven 深入设计含 Provenance ID/SourceRef/通用组件/四阶段规划)
+- **[update]** repos/_index.md, index.md — 补充两篇溯源设计文档索引
+- **[move]** ogmemory_provenance_design.md → wiki/repos/oG-Memory Provenance Design Analysis.md (初版精简保存)
+- **[save]** oG-Memory Session Archive vs Extracted Memory → wiki/repos/ (Session Archive 与抽取记忆串行执行、数据独立、仅 extraction_summary 去重)
+- **[update]** repos/_index.md, index.md — 补充 Session Archive vs Extracted Memory 索引
+- **[save]** oG-Memory Extraction and Storage Analysis + Example → wiki/repos/ (抽取与存储模块架构分析+实例详解，代码位置已验证，双向链接)
+- **[update]** repos/_index.md, index.md — 补充两篇 oG-Memory 文档索引
 - **[save]** Memory Provenance in Agentic Systems → wiki/concepts/ (记忆溯源研究综述：provenance/source attribution 术语、5 篇核心论文、3 篇综述、2 个实践项目、实现建议)
 - **[update]** concepts/_index.md, index.md — 补充 Memory Provenance 索引
 - **[save]** OpenClaw Dreaming Mechanism Visualized → wiki/repos/ (Mermaid 可视化数据流：总览图 + 阶段零信号收集时序图 + Light/REM/Deep 读写流程图 + 文件读写总结表)
