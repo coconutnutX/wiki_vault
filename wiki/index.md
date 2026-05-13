@@ -40,6 +40,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[oG-Memory Session Archive vs Extracted Memory]] — Session Archive 与抽取记忆的关系：串行执行、数据独立、仅去重关联
 - [[oG-Memory Provenance Design Analysis]] — 记忆溯源三方案初版对比
 - [[oG-Memory Schema-Driven Provenance Design]] — Schema-driven 溯源深入设计：Provenance ID 体系 + 通用组件 + 四阶段规划
+- [[oG-Memory Provenance Design RFC]] — Provenance RFC：现状分析 + ID 方案 + 实现路径（团队讨论稿）
 
 ## Entities
 - [[Workspace Environment]] — WSL2 工作环境：项目布局、Python conda 环境、wiki-vault 路径

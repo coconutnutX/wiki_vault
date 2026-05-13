@@ -23,3 +23,4 @@ External repositories researched for architecture, patterns, and design decision
 | [[oG-Memory Session Archive vs Extracted Memory]] | local (oG-Memory) | Python | Session Archive 与抽取记忆串行执行、数据独立、仅 extraction_summary 去重 | active |
 | [[oG-Memory Provenance Design Analysis]] | local (oG-Memory) | Python | 记忆溯源三方案初版对比（Metadata 注入/Provenance 表/Schema-driven） | active |
 | [[oG-Memory Schema-Driven Provenance Design]] | local (oG-Memory) | Python | Schema-driven 溯源深入设计：Provenance ID、SourceRef、通用组件、四阶段规划 | active |
+| [[oG-Memory Provenance Design RFC]] | local (oG-Memory) | Python | Provenance RFC：现状分析 + ID 方案 + 实现路径，用于团队对齐讨论 | draft |

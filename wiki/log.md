@@ -12,6 +12,7 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 - **[save]** Agent Memory Provenance Implementation Patterns → wiki/concepts/ (四大实现方案深度对比：agentmemory 引用链、Neon-Soul 四层溯源、MemORAI 图谱轮次级、AEVS 字符级锚定 + 生态调研 + 设计模式对比 + 实践建议)
 - **[update]** index.md, hot.md — 补充新页面索引和热缓存
+- **[save]** oG-Memory Provenance Design RFC → wiki/repos/ (RFC 讨论稿：现状分析、ID 方案 prov:1:{type}:{id}:{detail}、待确认项、P0/P1/P2 实现路径)
 - **[update]** oG-Memory Schema-Driven Provenance Design → 发现 pipeline 断裂（extraction 丢弃 message ID、span/archive 索引不对齐、archive 可覆写），新增 §0 前置修复；Provenance ID 改为基于 archive_id + message_id；阶段规划调整为 P0/P1/P2/P3
 - **[save]** oG-Memory Provenance Design Analysis + Schema-Driven Provenance Design → wiki/repos/ (溯源方案设计：初版三方案对比 + Schema-driven 深入设计含 Provenance ID/SourceRef/通用组件/四阶段规划)
 - **[update]** repos/_index.md, index.md — 补充两篇溯源设计文档索引
