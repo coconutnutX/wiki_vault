@@ -14,6 +14,62 @@ tags: [ogmemory, provenance, schema-driven, design, architecture]
 
 ---
 
+## 0. 前置修复：当前 Pipeline 的溯源缺陷
+
+在实现 Provenance 系统之前，需要先修复现有的数据链路断裂。这些问题是独立于 Provenance 设计的 bugfix 级改进。
+
+### 缺陷 1：extraction pipeline 丢弃消息身份（致命）
+
+`_build_incremental_extraction_state` (`memory_service.py:1928-1931`) 将 SessionMessage 转为匿名 dict：
+
+```python
+extraction_messages = [
+    {"role": message.role, "content": message.content}   # id 和 created_at 被丢弃
+    for message in incremental
+    if message.role != "assistant"
+]
+```
+
+同时 `archive_snapshot = list(incremental)` 保留了完整的 SessionMessage（包含 assistant 消息）。后果：
+
+```
+incremental:        [user_m3, assistant_m4, user_m5]
+extraction_messages: [user_m3, user_m5]              ← 索引 0, 1
+archive_snapshot:    [user_m3, assistant_m4, user_m5] ← 索引 0, 1, 2
+```
+
+extraction 中的 span 索引和 archive 中的消息索引**永远对不上**。这是所有溯源方案的根源性障碍。
+
+**修复**：在 `extraction_messages` 中保留 `id` 字段（~1 行改动）。
+
+### 缺陷 2：archive 不是不可变的
+
+`session_archives` 使用 `ON CONFLICT DO UPDATE`，`messages` 字段可以被覆写：
+
+```sql
+ON CONFLICT (account_id, session_id, archive_id) DO UPDATE SET
+    messages = EXCLUDED.messages,   -- 消息可被覆写
+```
+
+如果 archive 内容变了，所有溯源引用失效。实际上 archive_id 含时间戳+UUID，碰撞概率极低。
+
+**修复**：改为 `DO NOTHING`（1 行改动），archive 写入即不可变。
+
+### 缺陷 3：session 按 threshold 切成多个 archive
+
+一次对话被 threshold 切成多个 archive：
+
+```
+session_archives:
+  (acme, s-abc, 20260513_100000_a1b2) → messages[0..5]
+  (acme, s-abc, 20260513_103000_d4e5) → messages[6..9]
+  (acme, s-abc, 20260513_110000_g7h8) → messages[10..15]
+```
+
+这不是 bug，是设计选择。溯源应以 **archive_id + message_id** 为锚点，而非 session_id + span 索引。查询完整对话只需 `SELECT ... WHERE session_id = %s ORDER BY created_at`，不需要额外的 manifest 结构。
+
+---
+
 ## 1. 为什么 Schema-Driven 是正确选择
 
 oG-Memory 的核心设计理念是 **schema-driven**：记忆类型、字段定义、写入策略、URI 模板全部由 YAML schema 声明，代码只处理通用逻辑。
@@ -86,7 +142,7 @@ vector_records (IndexRecord)
 
 ### 3.1 Provenance ID 方案
 
-设计一个统一的 Provenance ID 体系，能跨组件使用：
+基于 message ID（而非 span 索引）设计统一 ID 体系：
 
 ```
 prov:{source_type}:{source_id}:{detail}
@@ -96,17 +152,20 @@ prov:{source_type}:{source_id}:{detail}
 
 | 来源 | Provenance ID |
 |------|---------------|
-| Session Archive 中的消息范围 | `prov:session:session-abc123:span:0-2` |
-| Session Archive 整体 | `prov:session:session-abc123:all` |
+| Archive 中的特定消息 | `prov:archive:20260513_100000_a1b2:msgs:msg_a3f8,msg_b7c1` |
+| Archive 整体 | `prov:archive:20260513_100000_a1b2:all` |
 | 另一个 context_node | `prov:memory:ctx://acme/users/alice/memories/profile/name:v3` |
 | Dream 输出 | `prov:dream:dream-20260513-001:phase:reinforce` |
 | Graph 构建 | `prov:graph:build-20260513:edge:alice-knows-bob` |
 
-特点：
-- **全局唯一**：`prov:` 前缀 + source_type + source_id 足以保证唯一性
-- **可解析**：通过 `:` 分隔可以反解出 source_type 和 source_id
-- **版本感知**：对于 context_node 可以带版本号（`:v3`），指向具体版本
-- **多来源支持**：一个产出物可以有多个 provenance ID（列表）
+为什么用 `archive_id` 而非 `session_id`：
+- 一个 session 有多个 archive（按 threshold 切分）
+- archive 是不可变的写入单元，session 不是
+- 溯源目标是稳定的锚点，archive_id 天然满足
+
+为什么用 `message_id` 而非 span 索引：
+- span 索引基于过滤后的 extraction_messages（无 assistant），archive 索引包含 assistant，两者永远对不上
+- message_id 是稳定唯一标识，不受数组过滤/重排影响
 
 ### 3.2 SourceRef 数据模型
 
@@ -114,9 +173,9 @@ prov:{source_type}:{source_id}:{detail}
 @dataclass
 class SourceRef:
     """统一溯源引用。"""
-    source_type: str        # "session" | "memory" | "dream" | "graph" | "vector"
-    source_id: str          # session_id / memory_uri / dream_id / ...
-    detail: str | None      # "span:0-2" / "v3" / "phase:reinforce" / None
+    source_type: str        # "archive" | "memory" | "dream" | "graph"
+    source_id: str          # archive_id / memory_uri / dream_id / ...
+    detail: str | None      # "msgs:msg_a3f8,msg_b7c1" / "v3" / None
     timestamp: str          # ISO8601，创建时间
 
     def to_provenance_id(self) -> str:
@@ -127,14 +186,13 @@ class SourceRef:
 
     @staticmethod
     def from_provenance_id(pid: str) -> "SourceRef":
-        # prov:session:session-abc:span:0-2
-        #   → source_type="session", source_id="session-abc", detail="span:0-2"
+        # prov:archive:20260513_100000_a1b2:msgs:msg_a3f8,msg_b7c1
         _, source_type, source_id, *detail_parts = pid.split(":")
         return SourceRef(
             source_type=source_type,
             source_id=source_id,
             detail=":".join(detail_parts) if detail_parts else None,
-            timestamp="",  # 需要额外查询
+            timestamp="",
         )
 ```
 
@@ -154,67 +212,48 @@ enabled: true
 
 # 新增：溯源声明
 provenance:
-  enabled: true                        # 是否启用溯源
-  sources:                             # 溯源来源声明
-    - source_type: "session"           # 来源类型
+  enabled: true
+  sources:
+    - source_type: "archive"
       auto_inject: true                # 自动注入，不让 LLM 填
-      granularity: "span"             # 粒度：span (消息范围) | session (整个 session)
-      multi_source: true              # 支持多来源（merge 后追加）
-  metadata_key: "provenance_ids"      # 存入 metadata 的 key 名
-
-fields:
-  # ... 现有字段不变 ...
+      granularity: "messages"          # 精确到消息 ID
+      multi_source: true              # merge 后追加，保留完整溯源链
+  metadata_key: "provenance_ids"
 ```
 
 不同 schema 可以有不同的溯源策略：
 
 ```yaml
-# event.yaml — 事件类型，需要精确到消息
+# event.yaml — 事件类型，精确到消息
 provenance:
   enabled: true
   sources:
-    - source_type: "session"
+    - source_type: "archive"
       auto_inject: true
-      granularity: "span"
-      multi_source: false             # event 不需要多来源
+      granularity: "messages"
+      multi_source: false
   metadata_key: "provenance_ids"
 
-# skill.yaml — 技能累积，溯源到之前的记忆
+# skill.yaml — 技能累积，可能溯源到其他记忆
 provenance:
   enabled: true
   sources:
-    - source_type: "session"
+    - source_type: "archive"
       auto_inject: true
-      granularity: "span"
-    - source_type: "memory"           # 可能从其他记忆推导出来
+      granularity: "messages"
+    - source_type: "memory"
       auto_inject: false              # 需要代码逻辑注入
       granularity: "uri"
   metadata_key: "provenance_ids"
 ```
 
-#### SchemaField 扩展
-
-```python
-@dataclass(frozen=True)
-class SchemaField:
-    name: str
-    field_type: FieldType
-    required: bool = False
-    description: str = ""
-    default: Any = None
-    enum: List[str] | None = None
-    # 新增
-    auto_inject: bool = False
-    inject_from: str | None = None    # "extraction_context" | "dream_context" | ...
-```
-
-#### MemoryTypeSchema 扩展
+#### Schema 模型扩展
 
 ```python
 @dataclass(frozen=True)
 class MemoryTypeSchema:
     # ... 现有字段 ...
-    provenance: ProvenanceConfig | None = None  # 新增
+    provenance: ProvenanceConfig | None = None
 
 @dataclass(frozen=True)
 class ProvenanceConfig:
@@ -224,15 +263,13 @@ class ProvenanceConfig:
 
 @dataclass(frozen=True)
 class ProvenanceSource:
-    source_type: str       # "session" | "memory" | "dream" | "graph"
+    source_type: str       # "archive" | "memory" | "dream" | "graph"
     auto_inject: bool = True
-    granularity: str = "span"  # "span" | "session" | "uri" | "version"
+    granularity: str = "messages"  # "messages" | "uri" | "version"
     multi_source: bool = False
 ```
 
 ### 3.4 框架层：ProvenanceManager
-
-一个通用组件，负责溯源的注入、存储、查询：
 
 ```python
 class ProvenanceManager:
@@ -253,12 +290,12 @@ class ProvenanceManager:
             if not source_decl.auto_inject:
                 continue
 
-            if source_decl.source_type == "session":
+            if source_decl.source_type == "archive":
                 ref = SourceRef(
-                    source_type="session",
-                    source_id=context.session_id,
-                    detail=f"span:{context.span_start}-{context.span_end}"
-                           if source_decl.granularity == "span" else None,
+                    source_type="archive",
+                    source_id=context.archive_id,
+                    detail=f"msgs:{','.join(context.message_ids)}"
+                           if context.message_ids else None,
                     timestamp=datetime.now(UTC).isoformat(),
                 )
                 source_refs.append(ref)
@@ -279,82 +316,108 @@ class ProvenanceManager:
         candidate: CandidateMemory,
         schema: MemoryTypeSchema,
     ) -> list[str]:
-        """Merge 时合并溯源列表。"""
+        """Merge 时合并溯源列表（追加而非覆盖）。"""
         key = schema.provenance.metadata_key
-
-        # 已有的溯源 IDs
         existing_ids = existing_node.metadata.get(key, [])
-
-        # 新的溯源 IDs
         new_ids = getattr(candidate, "provenance_ids", [])
-
-        # 去重合并
-        merged = list(dict.fromkeys(existing_ids + new_ids))
-        return merged
+        # 去重合并，保留顺序
+        return list(dict.fromkeys(existing_ids + new_ids))
 ```
 
 ### 3.5 全链路改动点
 
-#### 1. Extraction 层：传递 span 上下文
+#### 前置修复（P0）：extraction 保留 message ID
 
 ```python
-# extraction/tools.py — _structure_spans
-def _structure_spans(self, spans, messages, ...):
-    for prepared in prepared_spans:
-        # 构建 extraction context（新增）
-        extraction_ctx = ExtractionContext(
-            session_id=getattr(ctx, "session_id", ""),
-            span_start=prepared.span.start,
-            span_end=prepared.span.end,
-        )
-        candidates = self._structure_span_eager(prepared, ...)
-
-        # 注入溯源（新增）
-        for candidate in candidates:
-            self._provenance_mgr.inject_provenance(
-                candidate, schema, extraction_ctx
-            )
+# memory_service.py — _build_incremental_extraction_state
+extraction_messages = [
+    {"role": message.role, "content": message.content, "id": message.id}
+    for message in incremental
+    if message.role != "assistant"
+]
 ```
 
-#### 2. CandidateMemory：新增 provenance_ids
+#### 前置修复（P1）：archive 不可变
+
+```sql
+-- session/sql_archive_store.py
+ON CONFLICT (account_id, session_id, archive_id) DO NOTHING;
+```
+
+#### Provenance 改动（P2）
+
+**1. `_Span` 携带 message_ids：**
+
+```python
+@dataclass
+class _Span:
+    start: int
+    end: int
+    reason: str = ""
+    categories: list[str] = field(default_factory=list)
+    message_ids: list[str] = field(default_factory=list)
+```
+
+`_identify_spans` 解析后填充：
+
+```python
+span.message_ids = [
+    m["id"] for m in messages[span.start : span.end + 1] if "id" in m
+]
+```
+
+**2. CandidateMemory 新增字段：**
 
 ```python
 @dataclass
 class CandidateMemory:
     # ... 现有字段 ...
+    source_message_ids: list[str] = field(default_factory=list)
     provenance_ids: list[str] = field(default_factory=list)
 ```
 
-#### 3. ArchiveBuilder：写入 metadata
+**3. `_structure_spans` 中注入：**
 
 ```python
-# commit/archive_builder.py — build()
-# 已有模式：if candidate.when: metadata["when"] = candidate.when
-# 新增：
+# extraction/tools.py
+extraction_ctx = ExtractionContext(
+    archive_id=archive_id,       # 从 _background_extract_write 传入
+    message_ids=prepared.span.message_ids,
+)
+for candidate in candidates:
+    candidate.source_message_ids = prepared.span.message_ids
+    self._provenance_mgr.inject_provenance(candidate, schema, extraction_ctx)
+```
+
+**4. ArchiveBuilder 写入 metadata：**
+
+```python
+# commit/archive_builder.py
+metadata["source_message_ids"] = candidate.source_message_ids
 prov_metadata = self._provenance_mgr.build_metadata(candidate, schema, plan)
 metadata.update(prov_metadata)
 ```
 
-#### 4. Merge 策略：合并溯源列表
+**5. Merge 策略合并溯源：**
 
 ```python
-# commit/merge_policies.py — ProfilePolicy.plan()
-def plan(self, candidate, ctx):
-    # ... 现有逻辑 ...
-    if exists:
-        merged_provenance = self._provenance_mgr.merge_provenance(
-            existing, candidate, schema
-        )
-        merged_fields["provenance_ids"] = merged_provenance
+# commit/merge_policies.py
+merged_fields["source_message_ids"] = (
+    existing.metadata.get("source_message_ids", [])
+    + candidate.source_message_ids
+)
+merged_fields["provenance_ids"] = self._provenance_mgr.merge_provenance(
+    existing, candidate, schema
+)
 ```
 
-#### 5. IndexRecord：传递到向量索引
+**6. IndexRecord 传递到向量索引：**
 
 ```python
-# index/index_record_builder.py — build_index_records()
-key = schema.provenance.metadata_key if schema.provenance else "provenance_ids"
-if key in node.metadata:
-    record.metadata["provenance_ids"] = node.metadata[key]
+# index/index_record_builder.py
+for key in ("source_message_ids", "provenance_ids"):
+    if key in node.metadata:
+        record.metadata[key] = node.metadata[key]
 ```
 
 ### 3.6 多来源 Merge 示例
@@ -362,71 +425,57 @@ if key in node.metadata:
 ```
 Turn 1: "我叫 Alice，是后端工程师"
   → extract_profile(occupation)
-  → provenance_ids: ["prov:session:s-abc:span:0-0"]
+  → provenance_ids: ["prov:archive:20260513_100000_a1b2:msgs:msg_x1"]
 
 Turn 2: "我现在转去学前端了"
   → extract_profile(occupation) → merge
   → provenance_ids: [
-      "prov:session:s-abc:span:0-0",     ← 保留旧来源
-      "prov:session:s-abc:span:5-5",     ← 追加新来源
+      "prov:archive:20260513_100000_a1b2:msgs:msg_x1",       ← 旧来源
+      "prov:archive:20260513_103000_d4e5f:msgs:msg_y3",      ← 新来源
     ]
 ```
 
-metadata 中存储：
-```json
-{
-  "provenance_ids": [
-    "prov:session:s-abc:span:0-0",
-    "prov:session:s-abc:span:5-5"
-  ],
-  "when": null,
-  "who": null
-}
-```
+### 3.7 查询
 
-### 3.7 查询与使用
-
-#### 正向查询：记忆 → 来源
+#### 正向查询：记忆 → 来源消息
 
 ```python
 def resolve_provenance(self, node: ContextNode) -> list[SourceDetail]:
-    """给定一个 context_node，返回所有来源的详细信息。"""
     ids = node.metadata.get("provenance_ids", [])
     results = []
     for pid in ids:
         ref = SourceRef.from_provenance_id(pid)
-        if ref.source_type == "session":
-            archive = self._archive_store.get_by_session(ref.source_id)
-            if ref.detail and ref.detail.startswith("span:"):
-                start, end = parse_span(ref.detail)
-                messages = archive.messages[start:end+1]
-                results.append(SourceDetail(ref, messages))
-            else:
-                results.append(SourceDetail(ref, archive))
+        if ref.source_type == "archive":
+            # 按 session_id 查所有 archive，在 messages JSONB 中匹配 message ID
+            archives = self._archive_store.list_by_session(
+                ref.source_id, account_id
+            )
+            if ref.detail and ref.detail.startswith("msgs:"):
+                target_ids = ref.detail[5:].split(",")
+                for archive in archives:
+                    matched = [
+                        m for m in archive.messages
+                        if m.get("id") in target_ids
+                    ]
+                    if matched:
+                        results.append(SourceDetail(ref, matched))
+                        break
         elif ref.source_type == "memory":
             source_node = self._fs.read_node(ref.source_id)
             results.append(SourceDetail(ref, source_node))
     return results
 ```
 
-#### 反向查询：来源 → 记忆
-
-对于"这个 session 产生了哪些记忆"这类查询，可以用 SQL JSONB 查询：
+#### 反向查询：session → 产生的记忆
 
 ```sql
 SELECT uri, metadata->>'provenance_ids' as prov_ids
 FROM context_nodes
-WHERE metadata->>'provenance_ids' LIKE '%prov:session:s-abc:%';
+WHERE account_id = %s
+  AND metadata->>'provenance_ids' LIKE '%prov:archive:%';
 ```
 
-如果性能不够，后续可以加 GIN 索引：
-
-```sql
-CREATE INDEX idx_prov_ids ON context_nodes
-USING GIN (metadata jsonb_path_ops);
-```
-
-或者抽取为独立的 provenance 表（方案 B 的思路，作为阶段二升级）。
+或更精确地按 message_id 查（需要 GIN 索引支持）。
 
 ---
 
@@ -434,22 +483,7 @@ USING GIN (metadata jsonb_path_ops);
 
 ### 4.1 Dreaming（规划中）
 
-Dreaming 的输出（强化后的记忆）需要溯源到参与 dream 的 context_nodes：
-
-```yaml
-# dream_schema.yaml (概念示例)
-provenance:
-  enabled: true
-  sources:
-    - source_type: "memory"
-      auto_inject: true
-      granularity: "uri"
-      multi_source: true            # 多个输入记忆
-  metadata_key: "provenance_ids"
-```
-
 ```python
-# dream 输出时
 dream_output.provenance_ids = [
     f"prov:memory:{input_node.uri}:v{input_node.version}"
     for input_node in dream_inputs
@@ -458,73 +492,67 @@ dream_output.provenance_ids = [
 
 ### 4.2 Graph DB（规划中）
 
-图的边需要溯源到产生该关系的抽取操作：
-
 ```python
 edge.provenance_ids = [
     f"prov:memory:{source_node.uri}:v{source_node.version}",
-    f"prov:session:{session_id}:span:{span_start}-{span_end}",
+    f"prov:archive:{archive_id}:msgs:{','.join(msg_ids)}",
 ]
 ```
 
 ### 4.3 Vector Index
 
-IndexRecord 已经携带 metadata，溯源信息自然传递：
-
-```python
-record.metadata["provenance_ids"] = node.metadata.get("provenance_ids", [])
-```
-
-检索时 compose API 返回的结果中直接包含来源信息。
+IndexRecord.metadata 自然传递 provenance_ids，compose API 返回结果直接携带来源信息。
 
 ---
 
 ## 5. 阶段规划
 
-### Phase 1：Extraction 溯源（当前可实现）
+### P0：前置修复 — 保留 message ID（~15 行，4 文件）
 
-改动范围：
-1. `extraction/schemas/models.py` — 新增 `ProvenanceConfig`、`ProvenanceSource`
-2. `extraction/schemas/registry.py` — 解析 YAML `provenance:` 块
-3. `extraction/schemas/definitions/*.yaml` — 各 schema 加 `provenance:` 声明
-4. `extraction/tools.py` — 传递 span 上下文，调用 ProvenanceManager
-5. `core/models.py` — CandidateMemory 新增 `provenance_ids`
-6. `commit/archive_builder.py` — 写入 metadata
-7. `commit/merge_policies.py` — merge 时合并 provenance_ids
-8. `index/index_record_builder.py` — 传递到向量索引
+| 文件 | 改动 |
+|------|------|
+| `server/memory_service.py:1928` | extraction_messages 保留 `id` 字段 |
+| `extraction/tools.py:50` | `_Span` 新增 `message_ids` 字段 |
+| `extraction/tools.py` `_identify_spans` | 解析后填充 `message_ids` |
+| `core/models.py:145` | CandidateMemory 新增 `source_message_ids` |
 
-核心新增组件：`ProvenanceManager`（约 60 行）
+独立于 Provenance 系统，纯 bugfix。修复 span 索引与 archive 索引不对齐的根源问题。
 
-### Phase 2：查询 API
+### P1：前置修复 — archive 不可变（1 行）
 
-新增 `/api/v1/provenance/{uri}` 端点：
-- 正向查询：给定记忆 URI，返回来源详情
-- 反向查询：给定 session_id，返回所有从中产生的记忆
+| 文件 | 改动 |
+|------|------|
+| `session/sql_archive_store.py:134` | `DO UPDATE` → `DO NOTHING` |
 
-### Phase 3：Dreaming + Graph 溯源
+### P2：Schema-Driven Provenance（~60 行，8 文件）
 
-Dreaming 和 Graph 构建时复用同一套 ProvenanceManager + SourceRef 体系。
+| 文件 | 改动 |
+|------|------|
+| `extraction/schemas/models.py` | 新增 `ProvenanceConfig`、`ProvenanceSource` |
+| `extraction/schemas/registry.py` | 解析 YAML `provenance:` 块 |
+| `extraction/schemas/definitions/*.yaml` | 各 schema 加 `provenance:` 声明 |
+| `extraction/tools.py` | 构建 ExtractionContext，调用 ProvenanceManager |
+| `commit/archive_builder.py` | 写入 metadata |
+| `commit/merge_policies.py` | merge 时合并 provenance_ids |
+| `index/index_record_builder.py` | 传递到向量索引 |
+| 新增 `provenance/manager.py` | ProvenanceManager + SourceRef |
 
-### Phase 4（可选）：独立 Provenance 表
+### P3（可选）：独立 Provenance 表
 
-如果 metadata JSONB 查询性能不足，抽取为独立表：
+如果 metadata JSONB 查询性能不足：
 
 ```sql
 CREATE TABLE provenance_edges (
     id             UUID PRIMARY KEY,
-    target_uri     TEXT NOT NULL,       -- 被溯源的对象
-    provenance_id  TEXT NOT NULL,       -- "prov:session:s-abc:span:0-2"
-    source_type    TEXT NOT NULL,       -- "session" / "memory" / "dream"
-    source_ref     JSONB,              -- SourceRef 完整信息
+    target_uri     TEXT NOT NULL,
+    provenance_id  TEXT NOT NULL,
+    source_type    TEXT NOT NULL,
+    source_ref     JSONB,
     created_at     TIMESTAMP
 );
-
-CREATE INDEX idx_prov_target ON provenance_edges(target_uri);
-CREATE INDEX idx_prov_source ON provenance_edges(provenance_id);
-CREATE INDEX idx_prov_type ON provenance_edges(source_type);
 ```
 
-这是从 metadata JSONB 到专用表的**平滑迁移**——schema 声明和 ProvenanceManager 不需要改，只改存储层。
+从 metadata JSONB 到专用表的平滑迁移——schema 声明和 ProvenanceManager 不需要改，只改存储层。
 
 ---
 
@@ -550,7 +578,7 @@ CREATE INDEX idx_prov_type ON provenance_edges(source_type);
           ┌──────────────┼──────────────┐
           ▼              ▼              ▼
    Extraction        Dreaming        Graph DB
-   (Phase 1)         (Phase 3)       (Phase 3)
+   (P2)              (规划中)         (规划中)
           │              │              │
           ▼              ▼              ▼
    context_nodes    dream_outputs    graph_edges
@@ -562,7 +590,9 @@ CREATE INDEX idx_prov_type ON provenance_edges(source_type);
 ```
 
 核心原则：
-1. **Schema 声明，框架执行** — 溯源需求在 YAML 中声明，代码处理通用逻辑
-2. **Provenance ID 全局唯一** — `prov:{type}:{id}:{detail}` 跨组件可用
-3. **多来源列表** — merge 追加而非覆盖，保留完整溯源链
-4. **渐进式架构** — Phase 1 用 metadata JSONB，Phase 4 可平滑迁移到独立表
+1. **前置修复优先** — P0/P1 修复 pipeline 断裂，独立于 Provenance 设计
+2. **Schema 声明，框架执行** — 溯源需求在 YAML 中声明，代码处理通用逻辑
+3. **Message ID 而非 span 索引** — 稳定标识，不受数组过滤/重排影响
+4. **archive_id 而非 session_id** — archive 是不可变锚点，session 不是
+5. **多来源列表** — merge 追加而非覆盖，保留完整溯源链
+6. **渐进式架构** — P2 用 metadata JSONB，P3 可平滑迁移到独立表
