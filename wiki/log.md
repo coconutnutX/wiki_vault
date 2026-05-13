@@ -1,12 +1,17 @@
 ---
 type: meta
 title: "Wiki Log"
-updated: 2026-05-12
+updated: 2026-05-13
 ---
 
 # Wiki Log
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
+
+## 2026-05-13
+
+- **[save]** OpenClaw Dreaming Mechanism Visualized → wiki/repos/ (Mermaid 可视化数据流：总览图 + 阶段零信号收集时序图 + Light/REM/Deep 读写流程图 + 文件读写总结表)
+- **[update]** repos/_index.md, index.md — 补充 Visualized 文档索引
 
 ## 2026-05-12
 

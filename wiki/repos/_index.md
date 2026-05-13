@@ -1,7 +1,7 @@
 ---
 type: index
 folder: repos
-updated: 2026-05-12
+updated: 2026-05-13
 ---
 
 # Repos Index
@@ -17,3 +17,4 @@ External repositories researched for architecture, patterns, and design decision
 | [[OpenClaw Memory Architecture Analysis]] | github.com/openclaw/openclaw | TypeScript | 架构与代码对应：插件系统、Dreaming 三阶段、批判性分析 | active |
 | [[OpenClaw Memory Data Flow]] | github.com/openclaw/openclaw | TypeScript | 数据流时间点：组合可行性、检索/存储时机、配置示例 | active |
 | [[OpenClaw Memory Research Corrections]] | github.com/openclaw/openclaw | TypeScript | 调研误解与纠正（9 个误解 + 重水化解释 + 方法论反思） | active |
+| [[OpenClaw Dreaming Mechanism Visualized]] | github.com/openclaw/openclaw | TypeScript | Dreaming 机制 Mermaid 可视化：逐阶段读写数据流图 | active |

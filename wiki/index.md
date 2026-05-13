@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Wiki Index"
-updated: 2026-05-12
+updated: 2026-05-13
 ---
 
 # Wiki Index
@@ -33,6 +33,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[OpenClaw Memory Data Flow]] — 数据流时间点：组合可行性、检索/存储时机、配置示例
 - [[OpenClaw MEMORY.md Lifecycle]] — MEMORY.md 完整生命周期：写入/读取/截断的统一视图
 - [[OpenClaw Dreaming Mechanism]] — Dreaming 三阶段数据流：recall store 变化、评分算法、phase reinforcement
+- [[OpenClaw Dreaming Mechanism Visualized]] — Dreaming 机制 Mermaid 可视化：逐阶段读写数据流图
 - [[OpenClaw Memory Research Corrections]] — 调研误解与纠正记录（8 个误解+方法论反思）
 
 ## Entities
