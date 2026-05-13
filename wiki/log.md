@@ -10,6 +10,7 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-13
 
+- **[delete]] oG-Memory Provenance Design Analysis + oG-Memory Schema-Driven Provenance Design — 已被 [[oG-Memory Provenance Design RFC]] 整合替代，删除旧版避免冗余；同步更新 index.md、repos/_index.md、RFC 引用说明、Agent Memory Provenance Implementation Patterns 相关链接
 - **[save]** Agent Memory Provenance Implementation Patterns → wiki/concepts/ (四大实现方案深度对比：agentmemory 引用链、Neon-Soul 四层溯源、MemORAI 图谱轮次级、AEVS 字符级锚定 + 生态调研 + 设计模式对比 + 实践建议)
 - **[update]** index.md, hot.md — 补充新页面索引和热缓存
 - **[save]** oG-Memory Provenance Design RFC → wiki/repos/ (RFC 讨论稿：现状分析、ID 方案 prov:1:{type}:{id}:{detail}、待确认项、P0/P1/P2 实现路径)

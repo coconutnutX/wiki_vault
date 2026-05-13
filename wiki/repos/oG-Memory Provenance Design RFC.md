@@ -8,8 +8,7 @@ tags: [ogmemory, provenance, rfc, discussion]
 
 # oG-Memory Provenance Design (RFC)
 
-> 用于开发团队对齐讨论。旧版设计见 [[oG-Memory Schema-Driven Provenance Design]] 和 [[oG-Memory Provenance Design Analysis]]。
-> 学术背景见 [[Memory Provenance in Agentic Systems]] 和 [[Agent Memory Provenance Implementation Patterns]]。
+> 用于开发团队对齐讨论。学术背景见 [[Memory Provenance in Agentic Systems]] 和 [[Agent Memory Provenance Implementation Patterns]]。
 
 ---
 

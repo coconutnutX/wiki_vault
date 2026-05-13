@@ -6,8 +6,7 @@ updated: 2026-05-13
 tags: [memory, provenance, agentic-ai, implementation, design-pattern, agentmemory, neon-soul, memorai, aevs]
 related:
   - "[[Memory Provenance in Agentic Systems]]"
-  - "[[oG-Memory Provenance Design Analysis]]"
-  - "[[oG-Memory Schema-Driven Provenance Design]]"
+  - "[[oG-Memory Provenance Design RFC]]"
 ---
 
 # Agent Memory Provenance Implementation Patterns
