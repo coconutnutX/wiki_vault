@@ -41,6 +41,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 
 ## Concepts
 - [[OpenClaw Memory for Developers]] — 面向开发者的快速导览：架构、MEMORY.md 生命周期、常见误解
+- [[Memory Provenance in Agentic Systems]] — 记忆溯源：抽取/压缩后如何对应回原始文本，相关论文与实践方案
 
 ## Questions
 <!-- Filed answers to user queries -->

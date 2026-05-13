@@ -10,6 +10,8 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-13
 
+- **[save]** Memory Provenance in Agentic Systems → wiki/concepts/ (记忆溯源研究综述：provenance/source attribution 术语、5 篇核心论文、3 篇综述、2 个实践项目、实现建议)
+- **[update]** concepts/_index.md, index.md — 补充 Memory Provenance 索引
 - **[save]** OpenClaw Dreaming Mechanism Visualized → wiki/repos/ (Mermaid 可视化数据流：总览图 + 阶段零信号收集时序图 + Light/REM/Deep 读写流程图 + 文件读写总结表)
 - **[update]** repos/_index.md, index.md — 补充 Visualized 文档索引
 
