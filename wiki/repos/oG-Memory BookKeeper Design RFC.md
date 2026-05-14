@@ -843,4 +843,178 @@ Deep Phase 会更新已有节点，如何防止错误更新？
 - 涉及的 URI 列表
 - LLM 产出的理由/证据
 - 状态（pending / approved / done / rejected）
+
+---
+
+## 十、Research 启发与设计修正
+
+基于 [[Agentic Memory ReAct Research|领域调研]] 中的论文，对 BookKeeper 设计的具体启发。
+
+### 10.1 检索前规划：从 MIA 的 Planner 模式到 "Memory-Informed Query Planning"
+
+**来源**：MIA（arXiv:2604.04503）Manager-Planner-Executor 架构
+
+**启发**：MIA 的 Planner 在搜索前为问题生成搜索计划。类比到 oG-Memory：BookKeeper 在执行复杂检索前，先快速扫一遍用户已有的记忆（profile、近期偏好、活跃 entity），理解用户上下文后再生成更有针对性的查询。
+
+**当前设计的问题**：现有 pipeline 的 `QueryPlanner` 是纯规则匹配（关键词 → context_type 分类），不理解用户上下文。对于特化概念（"那个迁移方案"）或隐含指代（"上次说的"），pipeline 只能用原始 query 去做向量搜索，效果差。
+
+**修正方案**：在检索场景中增加 **Memory-Informed Planning** 步骤：
+
+```
+原流程（当前设计）：
+  query → pipeline.run() → [不足] → BookKeeper 直接追加搜索
+
+修正后：
+  query → 快速 prefetch 用户画像（profile + 近期偏好 + 活跃 entity）
+        → BookKeeper.run(
+              instruction="基于用户上下文重写查询并规划搜索策略",
+              tools=[read, list, search],
+              context={
+                  "original_query": query,
+                  "user_profile": prefetched_profile,
+                  "recent_entities": prefetched_entities,
+              },
+              max_iterations=2,       # 规划步骤，不需要多轮
+              timeout_seconds=5,      # 快速，秒级
+          )
+        → 输出：planned_queries[] + search_strategy
+        → pipeline.run(planned_queries) 或 BookKeeper 按 strategy 执行搜索
+```
+
+**新增工具**：
+
+```python
+QUICK_PROFILE_TOOL = {
+    "name": "get_user_context",
+    "description": "快速获取用户的画像摘要、近期活跃实体、偏好概览",
+    # 实现读取 profile category + 近期 event 的 abstract
+}
+```
+
+**与现有 pipeline 的整合**：这不是替代 pipeline，而是在 pipeline 前加一个轻量级规划层。成本可控（1-2 轮 LLM 调用，5s 超时），但对特化查询的检索质量提升显著。
+
+### 10.2 记忆决策原语：从 LongSeeker 的五操作到 BookKeeper 的 action vocabulary
+
+**来源**：LongSeeker Context-ReAct（arXiv:2605.05191）— Skip, Compress, Rollback, Snippet, Delete
+
+**启发**：LongSeeker 证明了有限的记忆操作原语集可以表达完备的记忆管理能力。当前 BookKeeper 的 `actions` 是无结构的 `list[dict]`，调用方自行解读。
+
+**修正方案**：定义 BookKeeper 的**标准化 action vocabulary**，覆盖三个场景：
+
+```python
+class BookKeeperAction:
+    """BookKeeper 输出的标准化操作。"""
+
+    # 检索场景
+    SEARCH = "search"              # 生成新查询并搜索
+    READ_DEEP = "read_deep"        # 深入读取某个节点的完整内容
+    FOLLOW_RELATION = "follow"     # 沿关系边追踪
+    AGGREGATE = "aggregate"        # 聚合多个节点信息
+    NOT_FOUND = "not_found"        # 明确表示找不到相关记忆
+
+    # 抽取/写入场景
+    EXTRACT = "extract"            # 抽取新记忆（现有 extract_* 工具）
+    UPDATE = "update"              # 更新已有记忆
+    MERGE = "merge"                # 合并多个记忆
+    SKIP = "skip"                  # 跳过不值得存储的信息
+
+    # Dreaming 场景
+    CANDIDATE_MERGE = "candidate_merge"        # 建议合并
+    CANDIDATE_ARCHIVE = "candidate_archive"    # 建议归档
+    CANDIDATE_RELATE = "candidate_relate"      # 建议建立关系
+    CANDIDATE_AGGREGATE = "candidate_aggregate" # 建议聚合
+
+    # 通用
+    COMPRESS = "compress"          # 压缩/摘要化（LightThinker++ 启发）
+```
+
+**好处**：
+- 调用方不再自行解析 `dict`，按 action type 分派处理
+- 可追踪和审计：每种 action 有明确的输入/输出 schema
+- 为后续 RL 优化（HAGE 启发）奠定基础——有明确的 action space
+
+### 10.3 检索时更新：从 "Reconsolidation upon Retrieval" 到主动记忆刷新
+
+**来源**：Human-Inspired Memory（arXiv:2605.08538）— reconsolidation upon retrieval
+
+**启发**：生物记忆系统在检索时不是纯读取——检索过程会**触发记忆的重新整合**。类比：当 BookKeeper 在检索过程中读取了某个节点，发现信息可以补充或更新，它应该有权限做"顺手更新"。
+
+**当前设计的问题**：检索场景的 BookKeeper 只有只读工具，不会触发任何写入。但检索过程中 LLM 已经读取并理解了记忆内容，浪费了这个理解能力。
+
+**修正方案**：在检索场景中引入 **lightweight reconsolidation**——检索 BookKeeper 可以输出 `update` action，但不直接执行，而是记录建议，由调用方决定是否执行。
+
+```python
+# 检索场景的 BookKeeper 结果
+BookKeeperResult(
+    actions=[
+        {"type": "search", "query": "数据库迁移决策", "uris": [...]},
+        {"type": "read_deep", "uri": "ctx://acme/.../migration_decision"},
+        {"type": "update", "uri": "ctx://acme/.../migration_decision",
+         "suggestion": "补充了后续变更信息", "fields": {"overview": "..."}},
+    ],
+    # update 不直接执行，而是作为 suggestion 返回给调用方
+)
+```
+
+**边界**：检索场景的 update 只是建议，不自动执行。需要调用方（compose handler）决定是否采纳。这与抽取场景和 dreaming 场景的自动执行不同。
+
+### 10.4 分层锚点：从 HiGMem 的两层 event-turn 到 oG-Memory 的三层利用
+
+**来源**：HiGMem（arXiv:2604.18349）— 两层 event-turn 系统，用事件摘要作语义锚点
+
+**启发**：oG-Memory 已有 L0（abstract）、L1（overview）、L2（content）三层，但 BookKeeper 目前对三层的利用不够精细。HiGMem 的思路是先用 L0/L1 做"锚点"定位，再精准读取 L2。
+
+**当前设计**：BookKeeper 的 `search` 工具已经通过 `HierarchicalSearcher` 做了 L0→L2 的展开，但这个展开是 pipeline 内部行为，BookKeeper 无法控制。
+
+**修正方案**：给 BookKeeper 增加分层读取控制：
+
+```python
+SEARCH_LIGHT_TOOL = {
+    "name": "search_light",
+    "description": "快速搜索，只返回 L0/L1 摘要。用于定位和规划。",
+    # 实现：VectorIndex.search_by_vector + level < 2 过滤
+}
+
+READ_FULL_TOOL = {
+    "name": "read_full",
+    "description": "读取节点完整 L2 内容。仅在确认相关性后使用。",
+    # 现有 read 的别名，语义更明确
+}
+```
+
+BookKeeper 的工作流变为：
+1. `search_light` → 快速定位候选（只看摘要，省 token）
+2. `read` 部分节点的 L1 → 确认相关性
+3. `read_full` 精准读取确认相关的节点的 L2
+
+这比一次性搜索+全部展开更高效，也符合 MIA 的"plan-then-execute"思路。
+
+### 10.5 抽取决策：从 MemReader 的价值评估到 extraction 场景的 Skip 机制
+
+**来源**：MemReader（arXiv:2604.07877）— 评估信息价值 → 检查引用歧义 → 选择性写入 / 延迟 / 丢弃
+
+**启发**：当前 extraction 流程对每条消息都尝试抽取（通过 span identification 过滤），但 span identification 是基于关键词匹配的浅层判断。MemReader 的思路是让 LLM 做**显式的信息价值评估**。
+
+**对 BookKeeper 的意义**：在抽取场景中，BookKeeper 应该有权输出 `skip` action——"这条信息不值得存储"。当前系统中这是通过 confidence < 0.5 过滤实现的，但 MemReader 的方式更细粒度：区分"价值低"和"信息不完整需要等待更多上下文"。
+
+```python
+# MemReader 启发的抽取决策
+EXTRACT = "extract"      # 值得存储，立即抽取
+SKIP = "skip"            # 无关闲聊，跳过
+DEFER = "defer"          # 信息不完整，等待后续上下文
+```
+
+`defer` 是新概念——当前系统没有"延迟抽取"机制。可以在 after_turn 中标记某些 span 为 deferred，等后续消息补充完整后再抽取。
+
+### 10.6 启发总结：对 BookKeeper 设计的具体修正
+
+| 论文启发 | 设计修正 | 影响范围 | 优先级 |
+|----------|---------|---------|--------|
+| MIA Planner | 检索前 Memory-Informed Planning | 检索场景 | **高** — 直接提升检索质量 |
+| LongSeeker 操作原语 | 标准化 BookKeeperAction vocabulary | 所有场景 | **高** — 接口规范化的基础 |
+| HiGMem 分层锚点 | search_light + read_full 分步控制 | 检索场景 | 中 — 优化 token 使用 |
+| Human-Inspired reconsolidation | 检索时输出 update suggestion | 检索场景 | 中 — 需要评估副作用 |
+| MemReader 价值评估 | Skip + Defer action | 抽取场景 | 中 — defer 需要新的持久化机制 |
+| HAGE 加权图演化 | Dreaming 中 RL 优化关系权重 | Dreaming | 低 — 长期方向 |
+| LightThinker++ 压缩 | Compress action | Dreaming | 低 — 已有 overview 摘要机制 |
 - 是否需要人工审批环节？
