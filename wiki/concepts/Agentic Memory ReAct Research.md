@@ -6,7 +6,7 @@ updated: 2026-05-14
 tags: [agentic-memory, react, memory-management, survey, research, 2026]
 source: "/data/Workspace2/agentic_memory_react_research.md"
 related:
-  - "[[oG-Memory BookKeeper Design RFC]]"
+  - "[[oG-Memory BookKeeper RFC v3]]"
   - "[[oG-Memory Extraction and Storage Analysis]]"
   - "[[OpenClaw Dreaming Mechanism]]"
   - "[[OpenClaw Memory System Overview]]"
@@ -16,7 +16,7 @@ related:
 
 2026 年 Agentic Memory 领域中使用 ReAct Agent 进行深度记忆管理的研究调研。涵盖 10 篇论文 + 5 个开源项目，总结技术趋势与代表性架构模式。
 
-> 对 oG-Memory [[oG-Memory BookKeeper Design RFC|BookKeeper]] 设计有直接参考价值。
+> 对 oG-Memory [[oG-Memory BookKeeper RFC v3|BookKeeper]] 设计有直接参考价值。
 
 ---
 

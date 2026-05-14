@@ -5,8 +5,6 @@ created: 2026-05-14
 updated: 2026-05-14
 tags: [ogmemory, bookkeeper, rfc, team-discussion]
 related:
-  - "[[oG-Memory BookKeeper RFC v2]]"
-  - "[[oG-Memory BookKeeper Design RFC]]"
   - "[[Agentic Memory ReAct Research]]"
   - "[[oG-Memory Extraction and Storage Analysis]]"
 ---
@@ -285,7 +283,7 @@ class ExtractionReActLoop(ReactLoop):
 
 #### T-3: DeepDreamReActLoop 实现 [设计中]
 
-> **状态说明**：本任务的实现依赖工具层的准备。下方列出各工具的实现状态，待工具层就绪后再细化实现计划。
+> **状态说明**：本任务的实现依赖工具层的准备，同时需要与 Light Dream 模块设计对齐（如候选输入格式、扫描策略的衔接）。下方列出各工具的实现状态，待工具层就绪后再细化实现计划。
 
 **涉及文件：**
 - 新建：`dreaming/deep_dream_loop.py`

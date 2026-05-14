@@ -39,8 +39,6 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[oG-Memory Extraction and Storage Example]] — 抽取与存储实例详解：从原始对话到持久化的完整数据流
 - [[oG-Memory Session Archive vs Extracted Memory]] — Session Archive 与抽取记忆的关系：串行执行、数据独立、仅去重关联
 - [[oG-Memory Provenance Design RFC]] — Provenance RFC：现状分析 + ID 方案 + 实现路径（团队讨论稿）
-- [[oG-Memory React Agent Design RFC]] — BookKeeper 设计：通用 ReAct Agent + 模块接口规范 + Research 启发（检索规划/操作原语/分层锚点）
-- [[oG-Memory BookKeeper RFC v2]] — BookKeeper RFC v2：面向团队的精简讨论稿（定位 + mermaid 架构图 + 模块交互）
 - [[oG-Memory BookKeeper RFC v3]] — BookKeeper RFC v3：基于团队讨论结论，ReActLoop 泛化 + Deep Dream + 演进路径
 
 ## Entities
