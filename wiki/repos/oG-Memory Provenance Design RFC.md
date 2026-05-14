@@ -8,9 +8,39 @@ tags: [ogmemory, provenance, rfc, discussion]
 
 # oG-Memory Provenance Design (RFC)
 
-> 用于开发团队对齐讨论。学术背景见 [[Memory Provenance in Agentic Systems]] 和 [[Agent Memory Provenance Implementation Patterns]]。
+> 用于开发团队对齐讨论。学术背景见 [[Memory Provenance in Agentic Systems]] 和 [[Agent Memory Provenance 追踪实现调研]]。
 
 ---
+
+# 需求背景
+
+记忆经历多个处理阶段——原始观测 → 压缩/抽取 → 结构化存储 / 晋升，各模块之间存在多方向的关系：
+
+```mermaid
+graph LR
+    SA[session_archive<br/>原始消息]
+    CN[context_node<br/>抽取记忆]
+    DO[dream_output<br/>强化记忆]
+    GE[规划中:<br/>graph_node / graph_edge<br/>关系图谱]
+
+    SA -- extraction --> CN
+    SA -- dreaming --> DO
+    CN -- dreaming --> DO
+    DO -- edit --> CN
+```
+
+LLM 参与的环节可能产生幻觉或错误归因，涉及下述问题：
+
+- **可信度**：用户能否验证 agent 的记忆来源？
+- **可调试性**：当 agent 基于错误记忆行动时，能否定位错误源头？
+- **合规性**：记忆是否包含未授权信息？
+- **一致性**：当源数据更新时，如何级联失效过时的衍生记忆？
+
+应实现一种机制，以达到：**任何一条记忆、任何一个关系，都应该能沿着链路回溯到产生它的原始来源**。
+
+---
+
+# 特性描述
 
 ## 1. 现状说明
 
@@ -50,32 +80,9 @@ after_turn 中，消息流经两条独立路径：
 
 ---
 
-## 2. Provenance 的必要性
+## 2. Provenance ID 方案
 
-各模块之间存在多方向的溯源关系，不是简单的串行链路：
-
-```mermaid
-graph LR
-    SA[session_archive<br/>原始消息]
-    CN[context_node<br/>抽取记忆]
-    DO[dream_output<br/>强化记忆]
-    GE[规划中:<br/>graph_node / graph_edge<br/>关系图谱]
-
-    SA -- extraction --> CN
-    SA -- dreaming --> DO
-    CN -- dreaming --> DO
-    DO -- edit --> CN
-```
-
-LLM 参与的环节（extraction、dreaming）会产生幻觉或错误归因。如果产出物无法追溯到来源，错误会沿多路径传播且无法定位。
-
-溯源的核心目的：**任何一条记忆、任何一个关系，都应该能沿着链路回溯到产生它的原始来源**。
-
----
-
-## 3. Provenance ID 方案
-
-### 3.1 格式
+格式：
 
 ```
 prov:{version}:{source_type}:{source_id}:{detail}
@@ -84,24 +91,26 @@ prov:{version}:{source_type}:{source_id}:{detail}
 - `version`: 当前固定为 `1`，为后续格式演进预留
 - `source_type`: 产出物类型 — `archive` / `memory` / `dream` / `graph`
 - `source_id`: 唯一标识 — archive_id / context_node.uri / dream_id
-- `detail`: 可选的具体位置 — `msgs:msg_a3f8,msg_b7c1` / `v3` / 空
+- `detail`: 可选的具体位置 — `msg_a3f8,msg_b7c1` / 空（为空时末尾保留 `:`）
+
+**特殊情况**：对`memory`类型， `source_id` 含冒号（如 URI `ctx://...`），`detail`为空
 
 示例：
 
-| 场景                 | Provenance ID                                                 |
-| ------------------ | ------------------------------------------------------------- |
-| 来源于 archive 中的两条消息 | `prov:1:archive:20260513_100000_a1b2:msgs:msg_a3f8,msg_b7c1`  |
-| 来源于 archive 整体     | `prov:1:archive:20260513_100000_a1b2`                         |
-| 来源于某条记忆            | `prov:1:memory:ctx://acme/users/alice/memories/entities/rust` |
-| 来源于某次 dream        | `prov:1:dream:20260513_dream_001`                             |
+| 场景                 | Provenance ID                                                  |
+| ------------------ | -------------------------------------------------------------- |
+| 来源于 archive 中的两条消息 | `prov:1:archive:20260513_100000_a1b2:msg_a3f8,msg_b7c1`   |
+| 来源于 archive 整体     | `prov:1:archive:20260513_100000_a1b2:`                         |
+| 来源于某条记忆            | `prov:1:memory:ctx://acme/users/alice/memories/entities/rust:` |
+| 来源于某次 dream        | `prov:1:dream:20260513_dream_001:`                             |
 
 存储为 `list[str]`，支持多来源。
 
 ---
 
-## 4. 实现
+## 3. 实现
 
-### 4.1：前置修复 — 保留 message ID + 预生成 archive_id
+### 3.1：前置修复 — 保留 message ID + 预生成 archive_id
 
 对应 1.1：
 
@@ -115,16 +124,17 @@ prov:{version}:{source_type}:{source_id}:{detail}
 ② commit_snapshot()  // 使用与 ① 相同的 archive_id
 ```
 
-### 4.2：前置修复 — archive 不可变
+### 3.2：前置修复 — archive 不可变
 
 ```sql
 -- session/sql_archive_store.py:134
+-- 从 DO UPDATE SET 修改为
 ON CONFLICT (account_id, session_id, archive_id) DO NOTHING;
 ```
 
 实际冲突概率极低：archive_id 格式为 `时间戳 + 8位UUID`（32 bit 空间），仅当同一秒内对同一 session 重试 commit_snapshot 且 UUID 碰撞时才会触发。此时 `DO NOTHING` 静默跳过即可——数据已写入，无需覆写。
 
-### 4.3：Schema 扩展
+### 3.3：Schema 扩展
 
 `extraction/schemas/definitions/*.yaml` 新增 `provenance_ids` 字段：
 
@@ -148,15 +158,16 @@ for field in schema.fields:
     # ... 正常生成 tool schema ...
 ```
 
-### 4.4：Provenance Resolver 实现
+### 3.4：Provenance Resolver 实现
 
 **新增 `core/provenance_resolver.py`**：
 
 ```python
 VALID_SOURCE_TYPES = {"archive", "memory", "dream", "graph"}
+KNOWN_DETAIL_PREFIXES = {"msgs", "v"}  # 可扩展（不含冒号，因 split 后 part 无冒号）
 
 class ProvenanceResolver:
-    """构建和解析 Provenance ID。"""
+    """构建和解析 Provenance ID（智能解析 URI 类 source_id）。"""
 
     @staticmethod
     def validate_source_type(source_type: str):
@@ -170,13 +181,33 @@ class ProvenanceResolver:
 
     @staticmethod
     def parse_id(pid: str) -> dict:
-        _, version, source_type, source_id, *detail = pid.split(":")
+        parts = pid.split(":")
+        version = int(parts[1])
+        source_type = parts[2]
+        detail = parts[3]
+        
+        # 对memory类型的特殊处理
+        ...
+        
         return {
-            "version": int(version),
+            "version": version,
             "source_type": source_type,
             "source_id": source_id,
-            "detail": ":".join(detail) if detail else None,
+            "detail": detail,
         }
+```
+
+解析示例：
+
+```python
+parse_id("prov:1:archive:20260513_100000_a1b2:msg_a3f8")
+# → source_id="20260513_100000_a1b2", detail="msg_a3f8"
+
+parse_id("prov:1:archive:20260513_100000_a1b2:")
+# → source_id="20260513_100000_a1b2", detail=""
+
+parse_id("prov:1:memory:ctx://acme/users/alice/memories/entities/rust:")
+# → source_id="ctx://acme/users/alice/memories/entities/rust", detail=""
 ```
 
 **provenance_id 生成与流转**：
@@ -187,14 +218,14 @@ class ProvenanceResolver:
 | ② 写入 | `commit/archive_builder.py` `build()` | `metadata["provenance_ids"] = candidate.provenance_ids` | 否 |
 | ③ 合并 | `commit/merge_policies.py` `plan()` | merge 时合并已有 + 新 provenance_ids（去重） | 否 |
 
-### 4.5 测试
+### 3.5 测试
 
 **单元测试** (`tests/unit/core/test_provenance_resolver.py`)：
 
 - `build_id` 正确拼接 `archive` + message IDs
 - `build_id` 无 detail 时末尾保留 `:` 分隔符
 - `build_id` 支持 `memory` 类型（含 URI 作为 source_id）
-- `build_id` 支持 `dream` 类型
+- `parse_id` 对非法 source_type 抛出 ValueError
 - `build_id` 对非法 source_type 抛出 ValueError
 - `parse_id` 正确解析含 detail 的 ID（roundtrip）
 
@@ -206,4 +237,5 @@ class ProvenanceResolver:
 - `ArchiveBuilder.build()` 将 `provenance_ids` 写入 metadata
 - merge 时 `provenance_ids` 追加而非覆盖
 - 相同 `provenance_id` 不重复
+
 

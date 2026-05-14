@@ -8,6 +8,13 @@ updated: 2026-05-13
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
 
+## 2026-05-14
+
+- **[save]** Agent Memory Provenance 追踪实现调研 → wiki/concepts/ (Provenance 实现深度调研：agentmemory/Neon-Soul/MemORAI/AEVS 四方案详解 + 生态调研 + 设计模式对比 + 实践建议)
+- **[delete]** Agent Memory Provenance Implementation Patterns → 被[[Agent Memory Provenance 追踪实现调研]]完全覆盖，删除旧版
+- **[update]** index.md, concepts/_index.md — 替换 Implementation Patterns 为新文档索引
+- **[update]** oG-Memory Provenance Design RFC — 更新头部引用链接
+
 ## 2026-05-13
 
 - **[delete]] oG-Memory Provenance Design Analysis + oG-Memory Schema-Driven Provenance Design — 已被 [[oG-Memory Provenance Design RFC]] 整合替代，删除旧版避免冗余；同步更新 index.md、repos/_index.md、RFC 引用说明、Agent Memory Provenance Implementation Patterns 相关链接

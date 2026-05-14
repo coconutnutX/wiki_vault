@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Wiki Index"
-updated: 2026-05-13
+updated: 2026-05-14
 ---
 
 # Wiki Index
@@ -46,7 +46,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 ## Concepts
 - [[OpenClaw Memory for Developers]] — 面向开发者的快速导览：架构、MEMORY.md 生命周期、常见误解
 - [[Memory Provenance in Agentic Systems]] — 记忆溯源：抽取/压缩后如何对应回原始文本，相关论文与实践方案
-- [[Agent Memory Provenance Implementation Patterns]] — 四大实现方案深度对比：agentmemory 引用链、Neon-Soul 四层溯源、MemORAI 图谱轮次级、AEVS 字符级锚定
+- [[Agent Memory Provenance 追踪实现调研]] — Provenance 实现深度调研：四大方案 + 生态 + 设计模式对比 + 实践建议
 
 ## Questions
 <!-- Filed answers to user queries -->
