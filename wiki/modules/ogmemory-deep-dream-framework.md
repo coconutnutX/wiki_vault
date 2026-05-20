@@ -8,6 +8,7 @@
 
 当前 AI Agent 记忆整合领域存在多种实现方式，尚未形成共识性最佳实践：
 
+- **OpenClaw Dreaming**: Light/REM/Deep 三阶段，从短期召回存储中评分晋升
 - **Stanford Generative Agents**: Reflection 机制（生成问题 → 搜索 → 回答）
 - **MemGPT/Letta**: 分层记忆 + Agent 自管理（core/archival/recall）
 - **Mem0**: 可配置衰减率 + 时间/频率/重要性评分
@@ -24,10 +25,10 @@ Acquire（获取） → Process（处理） → Output（输出）
 
 **核心优势**：
 
-1. **快速迭代验证**: MVP 只需实现最简单的组合（RecentAcquire + StanfordReflection），验证效果后可逐步替换或增加策略，无需重写整体架构
+1. **快速迭代验证**: MVP 只需实现最简单的组合（LightRemAcquire + SimpleProcess），验证效果后可逐步替换或增加策略，无需重写整体架构
 
 2. **策略独立演进**: 每个阶段独立变化，新增策略不影响其他阶段。例如：
-   - Acquire 新增 LightDream 输入源 → 只需新增 LightDreamAcquire
+   - Acquire 新增 Light+REM 输入源 → 只需新增 LightRemAcquire
    - Process 尝试聚类压缩 → 只需新增 ClusterSummarize
    - Output 增加合并逻辑 → 只需调整 OutputExecutor
 
@@ -47,7 +48,13 @@ Acquire（获取） → Process（处理） → Output（输出）
 
 ## 概述
 
-Deep Dream 是 oG-Memory 的记忆整合与优化机制，灵感来自 Stanford Generative Agents 的 Reflection 机制和人类睡眠时的记忆巩固过程。
+Deep Dream 是 oG-Memory 的记忆整合与优化机制，灵感来自 OpenClaw Dreaming 和人类睡眠时的记忆巩固过程。
+
+借鉴 OpenClaw 的 Light/REM/Deep 三阶段设计，但实现上有重要区别：
+- **OpenClaw**: Light 和 REM 是内部模块，产出写入短期召回存储 `.dreams/`
+- **oG-Memory**: Light 和 REM 由其他模块独立开发，产出作为 Deep Dream 的输入
+
+Deep Dream 在 oG-Memory 中对应 OpenClaw 的 **Deep Phase**：读取上游阶段输出、评分筛选、生成新的记忆。
 
 **核心目标**:
 - 从大量具体记忆中提炼高层次洞察
@@ -317,132 +324,128 @@ class OutputExecutor:
 
 ---
 
-## MVP 实现：Stanford Reflection
+## MVP 实现：简单晋升机制
 
-### RecentAcquire
+### 设计背景
+
+借鉴 OpenClaw Dreaming 的 Deep Phase 思路，但简化实现：
+
+**OpenClaw Deep Phase**:
+- 从短期召回存储 `.dreams/` 读取候选条目
+- 六信号评分（frequency/relevance/diversity/recency/consolidation/conceptual）
+- Phase Reinforcement 加成（Light/REM 命中次数）
+- 阈值门控后晋升到 MEMORY.md
+
+**oG-Memory Deep Dream MVP**:
+- 从 Light+REM 模块输出读取候选（由其他同事开发）
+- 简化评分或直接晋升
+- 生成新的 `dream` category 记忆
+
+**与 OpenClaw 的关键区别**:
+- OpenClaw Light/REM 是内部模块，产出写入 `.dreams/`
+- oG-Memory Light+REM 独立开发，产出作为 Deep Dream 输入
+- OpenClaw 晋升到 MEMORY.md（追加现有内容）
+- oG-Memory 创建新的 dream category 记忆（独立 URI）
+
+### LightRemAcquire
 
 ```python
-class RecentAcquire:
-    """获取最近 N 条记忆"""
+class LightRemAcquire:
+    """从 Light+REM 模块输出获取候选记忆
     
-    def __init__(self, limit: int = 100, category_filter: list[str] | None = None):
+    Light+REM 模块由其他同事开发，产出格式待定义。
+    预期输出可能包含:
+    - 高信号候选条目列表
+    - 条目的评分信息
+    - 条目的来源溯源
+    """
+    
+    def __init__(self, input_source: str = "default"):
         """
         Args:
-            limit: 最大获取数量
-            category_filter: 可选的 category 过滤列表
+            input_source: 输入源标识（支持多 Light+REM 实例）
         """
-        self.limit = limit
-        self.category_filter = category_filter
+        self.input_source = input_source
     
     def acquire(self, ctx, context_fs, vector_index) -> list[ContextNode]:
-        # 1. 从 context_fs.list_children 获取记忆 URI 列表
-        # 2. 按 metadata.updated_at 排序
-        # 3. 取最近 limit 条
-        # 4. 过滤 category（如有）
-        # 5. 使用 context_fs.read_node 获取完整内容
+        # === 从 Light+REM 输出获取候选 ===
+        # 1. 读取 Light+REM 模块的输出文件或 API
+        # 2. 解析候选条目（格式待 Light+REM 模块定义）
+        # 3. 转换为 ContextNode 格式
+        # 4. 返回候选列表
+        
+        # 注：Light+REM 输出格式需与 Light+REM 开发者协调
         ...
 ```
 
-### StanfordReflectionProcess
+### SimplePromotionProcess
 
 ```python
-class StanfordReflectionProcess:
-    """Stanford Generative Agents 的反思机制
+class SimplePromotionProcess:
+    """简化晋升处理
     
-    两阶段处理:
-    1. 从记忆生成高层次问题
-    2. 搜索相关记忆，回答问题生成洞察
+    MVP 版本不做复杂评分，直接将 Light+REM 输出转换为 dream 记忆。
+    后续版本可添加评分机制、去重、合并等。
     """
     
-    def __init__(self, num_questions: int = 3, search_top_k: int = 10):
+    def __init__(self, min_score_threshold: float = 0.0):
         """
         Args:
-            num_questions: 生成的问题数量
-            search_top_k: 搜索相关记忆的数量
+            min_score_threshold: 最低评分阈值（MVP 默认 0，即全部晋升）
         """
-        self.num_questions = num_questions
-        self.search_top_k = search_top_k
+        self.min_score_threshold = min_score_threshold
     
     def process(self, memories, ctx, llm, vector_index) -> list[DreamOutput]:
-        # === Step 1: 生成问题 ===
-        questions = self._generate_questions(memories, llm)
-        
-        # === Step 2: 回答每个问题 ===
         outputs = []
-        for question in questions:
-            # 2.1 搜索相关记忆
-            relevant_memories = self._search_relevant(question, vector_index, ctx)
+        for memory in memories:
+            # === 简化处理：直接转换 ===
+            # MVP 不做额外处理，后续可添加:
+            # - 内容摘要/压缩
+            # - 相似记忆合并
+            # - 重复/错误记忆检测
             
-            # 2.2 回答问题生成洞察
-            answer = self._answer_question(question, relevant_memories, llm)
-            
-            # 2.3 构建 DreamOutput
             outputs.append(DreamOutput(
-                content=answer,
-                abstract=answer[:200],
-                overview="",
-                dream_type="reflection",
-                importance=1.5,
-                provenance_ids=self._build_provenance_ids(relevant_memories),
+                content=memory.content,
+                abstract=memory.abstract,
+                overview=memory.overview,
+                dream_type="promotion",  # 从 Light+REM 晋升
+                importance=memory.metadata.get("score", 1.0),
+                provenance_ids=memory.metadata.get("provenance_ids", []),
                 action=WriteAction.CREATE,
             ))
         
         return outputs
+```
+
+### 扩展能力：删除/更新重复记忆
+
+MVP 不实现删除和更新，但架构支持后续扩展：
+
+**依赖 ContextWriter 能力**:
+- `WriteAction.DELETE`: 删除重复/错误记忆
+- `WriteAction.MERGE`: 合并相似记忆
+- `WriteAction.ARCHIVE`: 归档过期记忆
+
+**潜在实现思路**:
+```python
+class DeduplicationProcess:
+    """检测并处理重复记忆
     
-    # === 辅助方法 ===
+    流程:
+    1. 对候选记忆进行语义相似度检测
+    2. 发现与现有记忆高度相似（>threshold）
+    3. 生成 DreamOutput:
+       - action=DELETE 删除重复的旧记忆
+       - action=MERGE 合并相似记忆
+       - 或 action=CREATE 创建新的聚合记忆
     
-    def _generate_questions(self, memories: list[ContextNode], llm: LLM) -> list[str]:
-        """从记忆生成高层次问题
-        
-        Prompt:
-        "Based on these recent observations:
-        [记忆 abstract 列表]
-        
-        Generate {num_questions} high-level questions that would help
-        identify patterns, insights, or important themes."
-        
-        Returns:
-            问题字符串列表
-        """
-        ...
+    依赖 ContextWriter 提供的 DELETE/MERGE 能力。
+    """
     
-    def _search_relevant(self, question: str, vector_index: VectorIndex, ctx: RequestContext) -> list[ContextNode]:
-        """基于问题搜索相关记忆
-        
-        使用 vector_index.search_by_vector 进行语义搜索。
-        
-        Returns:
-            相关的 ContextNode 列表
-        """
-        ...
-    
-    def _answer_question(self, question: str, memories: list[ContextNode], llm: LLM) -> str:
-        """综合记忆回答问题
-        
-        Prompt:
-        "Question: {question}
-        
-        Relevant memories:
-        [记忆内容摘要]
-        
-        Provide a thoughtful synthesis that captures key insights."
-        
-        Returns:
-            洞察内容字符串
-        """
-        ...
-    
-    def _build_provenance_ids(self, memories: list[ContextNode]) -> list[str]:
-        """构建完整的 provenance_ids
-        
-        流程:
-        1. 为每个记忆生成 prov:1:memory:{uri}: 的 provenance_id
-        2. 收集每个记忆 metadata.provenance_ids（继承溯源）
-        3. 合并并去重
-        
-        Returns:
-            完整的 provenance_ids 列表
-        """
+    def process(self, memories, ctx, llm, vector_index) -> list[DreamOutput]:
+        # 1. 对每个候选记忆，搜索相似记忆
+        # 2. 根据相似度决定 action
+        # 3. 构建 DreamOutput
         ...
 ```
 
@@ -632,7 +635,7 @@ oG-Memory/
 │   ├── strategies/
 │   │   ├── __init__.py
 │   │   ├── acquire.py           # AcquireStrategy, RecentAcquire, CompositeAcquire
-│   │   ├── process.py           # ProcessStrategy, StanfordReflection, ClusterSummarize
+│   │   ├── process.py           # ProcessStrategy, SimplePromotionProcess, DeduplicationProcess
 │   │   └── output.py            # OutputExecutor（复用 ContextWriter）
 │   └── factory.py               # PipelineFactory（从配置构建 Pipeline）
 │   └── config.py                # 配置解析
@@ -674,6 +677,7 @@ oG-Memory/
 
 ## 参考
 
+- [[OpenClaw Dreaming Mechanism]] - OpenClaw Light/REM/Deep 三阶段设计，评分算法，phase reinforcement
 - [[ogmemory-architecture]] - oG-Memory 整体架构
 - [[agentic-memory-evaluation-survey]] - Agent 记忆调研报告
 - [Stanford Generative Agents Paper](https://arxiv.org/abs/2304.03442)
@@ -685,4 +689,5 @@ oG-Memory/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.0-draft | 2026-05-20 | 初版设计 |
+| v1.1-draft | 2026-05-20 | 改用 OpenClaw-inspired MVP：LightRemAcquire + SimplePromotionProcess |
+| v1.0-draft | 2026-05-20 | 初版设计（Stanford Reflection MVP）|
