@@ -9,7 +9,7 @@ updated: 2026-05-20
 Master catalog of all wiki pages. Updated on every ingest.
 
 ## Modules
-<!-- One [[Page]] per module, added during ingest -->
+- [[ogmemory-deep-dream-framework]] — Deep Dream 记忆整合框架：三阶段流水线、可插拔策略、dream category、溯源机制
 
 ## Components
 <!-- Reusable UI or functional components -->

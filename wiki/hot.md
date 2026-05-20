@@ -1,27 +1,27 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-20T09:40:00
+updated: 2026-05-20T16:45:00
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-20. oG-Memory 服务已启动，使用 PostgreSQL 16 作为 storage 和 vector_db。
+2026-05-20. Deep Dream 框架设计文档完成，准备进入实现阶段。
 
 ## Key Recent Facts
+- **Deep Dream Framework**: 三阶段流水线（Acquire → Process → Output），策略可插拔可组合，新增 `dream` category
+- **dream category**: URI 格式 `ctx://{account}/users/{user}/memories/dream/{dream_id}/`，与 ProvenanceResolver.dream source_type 对应
+- **溯源机制**: provenance_ids 存储来源记忆 URI + 继承的溯源链
 - **oG-Memory 运行状态**: HTTP 服务运行在 8090 端口，storage_backend=sql，vector_db=opengauss (PostgreSQL+pgvector)
 - **PostgreSQL 配置**: 数据库 ogmemory，用户 ogmem/ogmem123，pgvector 扩展已启用
-- **启动命令**: `ogmem start local --daemon` 或 `python server/app.py`
-- **健康检查**: `curl http://127.0.0.1:8090/api/v1/health` → {"status":"ok","sql":"connected"}
-- **PostgreSQL 16**: apt 安装 v16.14，数据目录 `/var/lib/postgresql/16/main`，systemd 自动管理
-- **ReactLoop 抽象基类**: Template Method 模式，子类实现 4 抽象方法 + 2 可选 override
 - Wiki vault: /mnt/c/Data/wiki-vault，workspace: /data/Workspace2
 
 ## Recent Changes
-- Created: [[oG-Memory Operations Guide]] (wiki/repos/) — 运行指南：启动/停止/验证命令
-- Created: [[PostgreSQL Installation Decision]] (wiki/decisions/) — 从 OpenGauss Docker 切换到 PostgreSQL
+- Created: [[ogmemory-deep-dream-framework]] (wiki/modules/) — Deep Dream 框架完整设计文档
+- Updated: [[Wiki Index]] — 添加 Deep Dream 模块条目
 
 ## Active Threads
-- oG-Memory ReactLoop 泛化完成，ToolDef 注册模式延后讨论
-- 记忆溯源与 oG-Memory evidence_quote 字段关联
+- Deep Dream 框架设计完成，下一步：实现基础版本（RecentAcquire + StanfordReflection）
+- 需修改文件：core/validation.py、core/uri_resolver.py、commit/merge_policies.py
+- LightDream 集成：后续由其他同事开发，Deep Dream 作为下游消费者
