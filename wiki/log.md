@@ -10,6 +10,9 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-20
 
+- **[save]** Promptfoo Extraction Testing Framework → wiki/decisions/ (使用 promptfoo + Python script provider 为 extraction 模块搭建测试框架：provider 类型、数据传递方式、串行运行避免死锁)
+- **[save]** Lazy Mode Empty Database Bug Fix → wiki/modules/ (Lazy 模式空数据库 bug 修复：prompt 补充、tool_choice 修复、格式匹配、candidates 提取)
+- **[update]** decisions/_index.md, modules/_index.md — 补充新页面索引
 - **[save]** oG-Memory Operations Guide → wiki/repos/ (运行指南：PostgreSQL 配置、启动/停止命令、API 端点、数据库管理、健康检查、初始化步骤)
 - **[update]** index.md — 补充 oG-Memory Operations Guide 索引
 - **[save]** PostgreSQL Installation Decision → wiki/decisions/ (放弃 OpenGauss Docker，改用 apt 安装 PostgreSQL 16：安装命令、数据目录、常用操作、清理记录、AGFS 状态)
