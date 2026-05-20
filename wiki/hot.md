@@ -1,28 +1,27 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-13T16:00:00
+updated: 2026-05-20T09:40:00
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-13. Added Agent Memory Provenance Implementation Patterns research.
+2026-05-20. oG-Memory 服务已启动，使用 PostgreSQL 16 作为 storage 和 vector_db。
 
 ## Key Recent Facts
-- **oG-Memory 抽取流程**: 两阶段 (Span Identification → Span Structuring)，支持 eager/lazy mode，dual-run 机制（默认 temp + temp=0）
-- **oG-Memory 存储流程**: PolicyRouter 策略路由 → ArchiveBuilder → SQLContextFS 原子写入 → Outbox 异步索引 (pgvector L0/L1/L2)
-- **oG-Memory Session Archive**: 原始消息完整存 session_archives.messages JSONB，不分块；抽取记忆存 context_nodes 三层分层
-- **Memory Provenance** 学术术语：provenance、source attribution、grounding。MemORAI turn-level provenance 最接近实际场景
-- **Provenance 四大实现模式**: agentmemory(citation chain) / Neon-Soul(4-layer file:line) / MemORAI(turn-level graph) / AEVS(char-level anchor)。推荐组合：引用链宏观溯源 + AEVS锚定微观验证 + 审计日志
+- **oG-Memory 运行状态**: HTTP 服务运行在 8090 端口，storage_backend=sql，vector_db=opengauss (PostgreSQL+pgvector)
+- **PostgreSQL 配置**: 数据库 ogmemory，用户 ogmem/ogmem123，pgvector 扩展已启用
+- **启动命令**: `ogmem start local --daemon` 或 `python server/app.py`
+- **健康检查**: `curl http://127.0.0.1:8090/api/v1/health` → {"status":"ok","sql":"connected"}
+- **PostgreSQL 16**: apt 安装 v16.14，数据目录 `/var/lib/postgresql/16/main`，systemd 自动管理
+- **ReactLoop 抽象基类**: Template Method 模式，子类实现 4 抽象方法 + 2 可选 override
 - Wiki vault: /mnt/c/Data/wiki-vault，workspace: /data/Workspace2
 
 ## Recent Changes
-- Created: [[Agent Memory Provenance Implementation Patterns]] (wiki/concepts/) — 四大实现方案深度对比
-- Full research doc: `/data/Workspace2/Agent Memory Provenance 追踪实现调研.md`
-- Created: [[Memory Provenance in Agentic Systems]] (wiki/concepts/)
-- Deleted: /data/Workspace2/extraction_storage_analysis.md + extraction_storage_example.md (已迁入 wiki)
+- Created: [[oG-Memory Operations Guide]] (wiki/repos/) — 运行指南：启动/停止/验证命令
+- Created: [[PostgreSQL Installation Decision]] (wiki/decisions/) — 从 OpenGauss Docker 切换到 PostgreSQL
 
 ## Active Threads
-- oG-Memory 主项目开发中，记忆溯源是关键设计问题
-- 记忆溯源与 oG-Memory 的 evidence_quote 字段天然关联
+- oG-Memory ReactLoop 泛化完成，ToolDef 注册模式延后讨论
+- 记忆溯源与 oG-Memory evidence_quote 字段关联

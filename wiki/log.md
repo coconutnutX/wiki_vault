@@ -1,12 +1,24 @@
 ---
 type: meta
 title: "Wiki Log"
-updated: 2026-05-13
+updated: 2026-05-20
 ---
 
 # Wiki Log
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
+
+## 2026-05-20
+
+- **[save]** oG-Memory Operations Guide → wiki/repos/ (运行指南：PostgreSQL 配置、启动/停止命令、API 端点、数据库管理、健康检查、初始化步骤)
+- **[update]** index.md — 补充 oG-Memory Operations Guide 索引
+- **[save]** PostgreSQL Installation Decision → wiki/decisions/ (放弃 OpenGauss Docker，改用 apt 安装 PostgreSQL 16：安装命令、数据目录、常用操作、清理记录、AGFS 状态)
+- **[update]** index.md — 补充 PostgreSQL Installation Decision 索引
+
+## 2026-05-19
+
+- **[save]** oG-Memory ReactLoop Abstract Base Class → wiki/concepts/ (ReAct 模式抽象基类设计：Template Method 模式、4 抽象方法、2 可选 override、子类继承扩展、Factory Method 追踪、重构历程)
+- **[update]** concepts/_index.md, index.md — 补充 ReactLoop 页面索引
 
 ## 2026-05-14
 

@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Wiki Index"
-updated: 2026-05-14
+updated: 2026-05-20
 ---
 
 # Wiki Index
@@ -16,6 +16,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 
 ## Decisions
 - [[Wiki Linking Convention]] — 内联双向链接 + _index.md 索引，不在文末集中列出相关页面
+- [[PostgreSQL Installation Decision]] — 放弃 OpenGauss Docker，改用 apt 安装 PostgreSQL 16：安装命令、清理记录、AGFS 状态
 
 ## Meta
 - [[claude-obsidian Plugin Setup Notes]] — 插件安装、vault 搭建过程中的问题和解决方案
@@ -40,6 +41,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[oG-Memory Session Archive vs Extracted Memory]] — Session Archive 与抽取记忆的关系：串行执行、数据独立、仅去重关联
 - [[oG-Memory Provenance Design RFC]] — Provenance RFC：现状分析 + ID 方案 + 实现路径（团队讨论稿）
 - [[oG-Memory BookKeeper RFC v3]] — BookKeeper RFC v3：基于团队讨论结论，ReActLoop 泛化 + Deep Dream + 演进路径
+- [[oG-Memory Operations Guide]] — 运行指南：PostgreSQL 配置、启动/停止命令、API 端点、数据库管理、健康检查
 
 ## Entities
 - [[Workspace Environment]] — WSL2 工作环境：项目布局、Python conda 环境、wiki-vault 路径
@@ -49,6 +51,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[Memory Provenance in Agentic Systems]] — 记忆溯源：抽取/压缩后如何对应回原始文本，相关论文与实践方案
 - [[Agent Memory Provenance 追踪实现调研]] — Provenance 实现深度调研：四大方案 + 生态 + 设计模式对比 + 实践建议
 - [[Agentic Memory ReAct Research]] — 2026 ReAct Agent 记忆管理调研：10 篇论文 + 5 个开源项目，技术趋势与架构模式
+- [[oG-Memory ReactLoop Abstract Base Class]] — ReAct 模式抽象基类：Template Method 设计、子类继承扩展、Factory Method 追踪
 
 ## Questions
 <!-- Filed answers to user queries -->
