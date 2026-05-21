@@ -1,9 +1,9 @@
 ---
 type: module
-status: draft
+status: in-progress
 created: 2026-05-21
 updated: 2026-05-21
-tags: [ogmemory, lazy-mode, extraction, optimization, react-loop]
+tags: [ogmemory, lazy-mode, extraction, optimization, react-loop, prompt-unification]
 related:
   - "[[Lazy Mode Empty Database Bug Fix]]"
   - "[[oG-Memory ReactLoop Abstract Base Class]]"
@@ -13,6 +13,43 @@ related:
 # oG-Memory Lazy Mode Extraction Issues and Optimization Plan
 
 Lazy 模式（ReAct loop）在提取记忆时面临多个问题，包括类型判断错误、重复提取、冲突处理不当等。本文档分析现有实现的问题并提出优化方案。
+
+---
+
+## ✅ 已实施改动（2026-05-21）
+
+### Prompt 系统统一
+
+**改动摘要**：将 Lazy 模式的硬编码 prompt 替换为 YAML 模板系统，实现 Eager/Lazy 模式 prompt 统一。
+
+**改动文件**：
+- `extraction/prompts/templates/extraction.yaml`：新增 `identity_block`（共享）、`lazy_tools_instruction`（Lazy特有）
+- `extraction/tools.py`：`_build_prompt()` 使用 `identity_block` 模板
+- `extraction/extraction_react_loop.py`：删除硬编码 `_build_system_prompt()`，`prompt_manager` 变为必填参数
+
+**复用关系**：
+| 内容 | Eager | Lazy | 来源 |
+|------|-------|------|------|
+| system_prompt | ✅ | ✅ | extraction.yaml（核心规则，已验证） |
+| identity_block | ✅ | ✅ | extraction.yaml（用户身份锚点） |
+| examples | ✅ | ✅ | extraction.yaml（few-shot 示例） |
+| output_instruction | ✅ | ✅ | extraction.yaml（输出语言） |
+| lazy_tools_instruction | ❌ | ✅ | extraction.yaml（探索策略 + 反思指导） |
+
+**lazy_tools_instruction 内容**：
+- 工具说明：`read`, `list`, `extract_*`
+- 探索时机：内容模糊、prefetch URI 相关、可能与历史重复/冲突
+- **反思指导（新增）**：分类调整、重复/冲突处理、置信度校准
+
+**关键发现**：
+- ReAct 循环只在开始时调用 `_build_messages()` 一次
+- System prompt 只出现在 `messages[0]`，不会重复写入
+- 每轮工具调用结果 append 到 messages，LLM 通过历史看到探索结果
+
+**设计决策**：
+- 不新建模板文件，直接复用 extraction.yaml（减少重复）
+- `identity_block` 抽取到 YAML，两个模式共享（一致性）
+- Lazy 只追加工具说明和反思指导，核心提取规则与 Eager 完全一致
 
 ---
 
@@ -544,3 +581,4 @@ When reading existing memory that conflicts with new extraction:
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0-draft | 2026-05-21 | 初版：问题分析 + 优化方案 |
+| v1.1 | 2026-05-21 | 实施部分 P0：Prompt 系统统一，Eager/Lazy 共用 YAML 模板，新增反思指导 |
