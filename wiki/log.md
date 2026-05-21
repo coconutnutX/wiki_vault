@@ -10,6 +10,7 @@ Chronological record of all wiki operations. Append-only — never edit past ent
 
 ## 2026-05-20
 
+- **[update]** Lazy Mode Empty Database Bug Fix → 补充 `_to_candidate` 统一解析重构：简化 `_execute_tool` 返回结构、Eager/Lazy 共用解析方法、数据结构一致化
 - **[save]** Promptfoo Extraction Testing Framework → wiki/decisions/ (使用 promptfoo + Python script provider 为 extraction 模块搭建测试框架：provider 类型、数据传递方式、串行运行避免死锁)
 - **[save]** Lazy Mode Empty Database Bug Fix → wiki/modules/ (Lazy 模式空数据库 bug 修复：prompt 补充、tool_choice 修复、格式匹配、candidates 提取)
 - **[update]** decisions/_index.md, modules/_index.md — 补充新页面索引

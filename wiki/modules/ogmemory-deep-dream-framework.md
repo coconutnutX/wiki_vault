@@ -328,16 +328,10 @@ class OutputExecutor:
 
 ### 设计背景
 
-借鉴 OpenClaw Dreaming 的 Deep Phase 思路，但简化实现：
-
-**OpenClaw Deep Phase**:
-- 从短期召回存储 `.dreams/` 读取候选条目
-- 六信号评分（frequency/relevance/diversity/recency/consolidation/conceptual）
-- Phase Reinforcement 加成（Light/REM 命中次数）
-- 阈值门控后晋升到 MEMORY.md
+借鉴 OpenClaw Dreaming 的 Deep Phase 思路：
 
 **oG-Memory Deep Dream MVP**:
-- 从 Light+REM 模块输出读取候选（由其他同事开发）
+- 从 Light+REM 模块（开发中）输出读取候选
 - 简化评分或直接晋升
 - 生成新的 `dream` category 记忆
 
@@ -369,12 +363,9 @@ class LightRemAcquire:
     
     def acquire(self, ctx, context_fs, vector_index) -> list[ContextNode]:
         # === 从 Light+REM 输出获取候选 ===
-        # 1. 读取 Light+REM 模块的输出文件或 API
+        # 1. 读取 Light+REM 模块的输出
         # 2. 解析候选条目（格式待 Light+REM 模块定义）
-        # 3. 转换为 ContextNode 格式
-        # 4. 返回候选列表
-        
-        # 注：Light+REM 输出格式需与 Light+REM 开发者协调
+        # 3. 返回候选列表
         ...
 ```
 
