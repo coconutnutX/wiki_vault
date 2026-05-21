@@ -715,188 +715,212 @@ oG-Memory/
 
 ---
 
-## 工具定义示例
+## 工具定义方案对比
 
-借鉴 oG-Memory 现有的 `extraction/tool_schemas.py` 模式：
+### 方案 A：Pydantic BaseModel + ClassVar（现有 oG-Memory 模式）
+
+**问题**：`tool_name` 硬编码在 ClassVar，可能与实际注册时不匹配；需要手动维护 `DREAM_TOOL_MODELS` 列表。
 
 ```python
-# deepdream/tool_schemas.py
-
-from pydantic import BaseModel, Field
-from typing import ClassVar
-
-
+# 问题示例
 class MemoryAcquireRecentInput(BaseModel):
+    tool_name: ClassVar[str] = "memory_acquire_recent"  # 硬编码，可能不匹配
+    
+# 需要手动维护列表
+DREAM_TOOL_MODELS = [MemoryAcquireRecentInput, ...]  # 容易遗漏
+```
+
+### 方案 B：@tool 装饰器（LangChain 模式，推荐）
+
+**优势**：自动从函数签名提取 schema，docstring 作为 description，无需硬编码。
+
+```python
+# deepdream/tools.py
+
+from langchain_core.tools import tool
+from core.models import RequestContext, ContextNode, DreamOutput
+
+@tool
+def memory_acquire_recent(
+    ctx: RequestContext,
+    context_fs: ContextFS,
+    limit: int = 100,
+    category_filter: list[str] | None = None,
+) -> list[ContextNode]:
     """获取最近 N 条记忆作为 Deep Dream 输入。
     
-    借鉴 extract_*_Input 的设计模式：
-    - Pydantic BaseModel 定义输入 schema
-    - ClassVar 定义 tool_name / tool_description
-    - execute() 方法包含执行逻辑
+    返回 ContextNode 列表，按 updated_at 排序。
+    
+    Args:
+        ctx: 请求上下文
+        context_fs: 文件系统接口
+        limit: 最大获取数量，默认 100
+        category_filter: 可选的 category 过滤列表
     """
-    
-    limit: int = Field(default=100, description="最大获取数量")
-    category_filter: list[str] | None = Field(
-        default=None,
-        description="可选的 category 过滤列表"
-    )
-    
-    tool_name: ClassVar[str] = "memory_acquire_recent"
-    tool_description: ClassVar[str] = (
-        "获取最近 N 条记忆作为 Deep Dream 输入。"
-        "返回 ContextNode 列表，按 updated_at 排序。"
-    )
-    
-    def execute(self, ctx: RequestContext, context_fs: ContextFS) -> list[ContextNode]:
-        """执行获取逻辑（策略实现）。
-        
-        流水线和 Agent 都调用此方法。
-        """
-        # 1. 从 context_fs.list_children 获取记忆 URI
-        # 2. 按 metadata.updated_at 排序
-        # 3. 取最近 self.limit 条
-        # 4. 过滤 category（如有）
-        # 5. 使用 context_fs.read_node 获取完整内容
-        ...
+    # 1. 从 context_fs.list_children 获取记忆 URI
+    # 2. 按 metadata.updated_at 排序
+    # 3. 取最近 limit 条
+    # 4. 过滤 category（如有）
+    # 5. 使用 context_fs.read_node 获取完整内容
+    ...
 
-
-class MemoryAcquireLightremInput(BaseModel):
-    """从 Light+REM 模块获取候选记忆。"""
+@tool
+def memory_acquire_lightrem(
+    ctx: RequestContext,
+    context_fs: ContextFS,
+    source: str = "default",
+) -> list[ContextNode]:
+    """从 Light+REM 模块获取候选记忆。
     
-    source: str = Field(default="default", description="输入源标识")
-    
-    tool_name: ClassVar[str] = "memory_acquire_lightrem"
-    tool_description: ClassVar[str] = (
-        "从 Light+REM 模块获取候选记忆。"
-        "Light+REM 输出格式待定义。"
-    )
-    
-    def execute(self, ctx: RequestContext, context_fs: ContextFS) -> list[ContextNode]:
-        """从 Light+REM 输出获取候选。"""
-        # 读取 Light+REM 模块的输出文件或 API
-        ...
-
-
-class MemoryProcessPromotionInput(BaseModel):
-    """处理候选记忆，生成晋升输出。"""
-    
-    min_score_threshold: float = Field(default=0.0, description="最低评分阈值")
-    
-    tool_name: ClassVar[str] = "memory_process_promotion"
-    tool_description: ClassVar[str] = (
-        "处理候选记忆，生成晋升输出。"
-        "MVP 版本直接转换，后续可添加评分机制。"
-    )
-    
-    memories: list[ContextNode]  # 输入来自 acquire
-    
-    def execute(self, ctx: RequestContext) -> list[DreamOutput]:
-        """处理记忆，生成 DreamOutput。"""
-        outputs = []
-        for memory in self.memories:
-            outputs.append(DreamOutput(
-                content=memory.content,
-                abstract=memory.abstract,
-                dream_type="promotion",
-                importance=memory.metadata.get("score", 1.0),
-                provenance_ids=memory.metadata.get("provenance_ids", []),
-                action=WriteAction.CREATE,
-            ))
-        return outputs
-
-
-class MemoryOutputCreateInput(BaseModel):
-    """创建新的 dream 记忆。"""
-    
-    outputs: list[DreamOutput]  # 输入来自 process
-    
-    tool_name: ClassVar[str] = "memory_output_create"
-    tool_description: ClassVar[str] = (
-        "创建新的 dream 记忆。"
-        "将 DreamOutput 转换为 CandidateMemory，通过 ContextWriter 写入。"
-    )
-    
-    def execute(self, ctx: RequestContext, context_writer: ContextWriter) -> list[WritePlan]:
-        """执行写入。"""
-        plans = []
-        for output in self.outputs:
-            candidate = self._to_candidate(output, ctx)
-            plan = context_writer.write_candidate(candidate, ctx)
-            plans.append(plan)
-        return plans
-    
-    def _to_candidate(self, output: DreamOutput, ctx: RequestContext) -> CandidateMemory:
-        """转换 DreamOutput → CandidateMemory。"""
-        ...
-
-
-class DeepDreamInput(BaseModel):
-    """组合工具：一键执行完整 Deep Dream 流程。"""
-    
-    acquire_strategy: str = Field(default="lightrem", description="获取策略")
-    process_strategy: str = Field(default="promotion", description="处理策略")
-    
-    tool_name: ClassVar[str] = "deep_dream"
-    tool_description: ClassVar[str] = (
-        "执行完整的 Deep Dream 流程。"
-        "内部组装流水线，一键调用。"
-    )
-    
-    def execute(self, ctx, context_fs, vector_index, llm, context_writer) -> DeepDreamReport:
-        """组装并执行流水线。"""
-        # 根据 acquire_strategy 选择对应的 Input Model
-        if self.acquire_strategy == "lightrem":
-            acquire_input = MemoryAcquireLightremInput()
-        else:
-            acquire_input = MemoryAcquireRecentInput()
-        
-        # 执行各阶段
-        memories = acquire_input.execute(ctx, context_fs)
-        
-        process_input = MemoryProcessPromotionInput(memories=memories)
-        outputs = process_input.execute(ctx)
-        
-        output_input = MemoryOutputCreateInput(outputs=outputs)
-        plans = output_input.execute(ctx, context_writer)
-        
-        return DeepDreamReport(...)
-
-
-# 工具列表（用于 get_tool_definitions）
-DREAM_TOOL_MODELS = [
-    MemoryAcquireRecentInput,
-    MemoryAcquireLightremInput,
-    MemoryProcessPromotionInput,
-    MemoryOutputCreateInput,
-    DeepDreamInput,
-]
-
-
-def get_dream_tool_definitions() -> list[dict]:
-    """生成 OpenAI/Claude function calling 格式的工具定义。
-    
-    借鉴 extraction/tool_schemas.py 的 get_tool_definitions()。
+    Light+REM 输出格式待定义。
     """
-    tools = []
-    for model in DREAM_TOOL_MODELS:
-        schema = model.model_json_schema()
-        tools.append({
-            "name": model.tool_name,
-            "description": model.tool_description,
-            "input_schema": {
-                "type": "object",
-                "properties": {...},
-                "required": [...],
-            }
-        })
-    return tools
+    ...
+
+@tool
+def memory_process_promotion(
+    memories: list[ContextNode],
+    ctx: RequestContext,
+    min_score_threshold: float = 0.0,
+) -> list[DreamOutput]:
+    """处理候选记忆，生成晋升输出。
+    
+    MVP 版本直接转换，后续可添加评分机制。
+    """
+    outputs = []
+    for memory in memories:
+        outputs.append(DreamOutput(
+            content=memory.content,
+            abstract=memory.abstract,
+            dream_type="promotion",
+            importance=memory.metadata.get("score", 1.0),
+            provenance_ids=memory.metadata.get("provenance_ids", []),
+            action="create",
+        ))
+    return outputs
+
+@tool
+def memory_output_create(
+    outputs: list[DreamOutput],
+    ctx: RequestContext,
+    context_writer: ContextWriter,
+) -> list[WritePlan]:
+    """创建新的 dream 记忆。
+    
+    将 DreamOutput 转换为 CandidateMemory，通过 ContextWriter 写入。
+    """
+    plans = []
+    for output in outputs:
+        candidate = _to_candidate(output, ctx)
+        plan = context_writer.write_candidate(candidate, ctx)
+        plans.append(plan)
+    return plans
+
+@tool
+def deep_dream(
+    ctx: RequestContext,
+    context_fs: ContextFS,
+    acquire_strategy: str = "lightrem",
+    process_strategy: str = "promotion",
+) -> DeepDreamReport:
+    """执行完整的 Deep Dream 流程（一键调用）。
+    
+    内部组装流水线：acquire → process → output
+    """
+    # 执行各阶段
+    if acquire_strategy == "lightrem":
+        memories = memory_acquire_lightrem.invoke(ctx, context_fs)
+    else:
+        memories = memory_acquire_recent.invoke(ctx, context_fs)
+    
+    outputs = memory_process_promotion.invoke(memories, ctx)
+    plans = memory_output_create.invoke(outputs, ctx)
+    
+    return DeepDreamReport(...)
+
+
+# === 自动注册 ===
+# 所有 @tool 装饰的函数自动注册，无需手动维护列表
+
+def get_dream_tools() -> list:
+    """获取所有 Deep Dream 工具。
+    
+    @tool 装饰器自动注册，无需手动列表。
+    """
+    return [
+        memory_acquire_recent,
+        memory_acquire_lightrem,
+        memory_process_promotion,
+        memory_output_create,
+        deep_dream,
+    ]
 ```
 
 **关键优势**：
-- **单一定义**：一个 Pydantic Model 同时定义 schema + 执行逻辑
-- **类型安全**：输入验证由 Pydantic 自动处理
-- **代码复用**：`execute()` 方法被流水线和 Agent 共同调用
-- **一致性**：与现有 `extraction/tool_schemas.py` 模式完全一致
+- **零硬编码**：工具名从函数名自动提取
+- **自动 schema**：从函数签名和 docstring 生成
+- **单一注册点**：装饰器即注册，无需维护列表
+- **类型安全**：返回类型注解确保输出一致性
+
+### 方案 C：Registry 模式（动态注册）
+
+借鉴 oG-Memory 的 `SchemaRegistry`，但改进为动态注册：
+
+```python
+# deepdream/registry.py
+
+class DreamToolRegistry:
+    """Deep Dream 工具注册中心
+    
+    解决 ClassVar 硬编码问题：注册时绑定 tool_name。
+    """
+    
+    def __init__(self):
+        self._tools: dict[str, ToolSpec] = {}
+    
+    def register(self, name: str, func, description: str = None):
+        """注册工具
+        
+        name 从注册时传入，而非硬编码在 ClassVar。
+        """
+        schema = _extract_schema_from_func(func)
+        self._tools[name] = ToolSpec(
+            name=name,
+            description=description or func.__doc__,
+            schema=schema,
+            handler=func,
+        )
+    
+    def get_tool_definitions(self) -> list[dict]:
+        """生成 LLM function calling 格式"""
+        return [
+            {
+                "name": spec.name,
+                "description": spec.description,
+                "input_schema": spec.schema,
+            }
+            for spec in self._tools.values()
+        ]
+
+# 使用示例
+registry = DreamToolRegistry()
+
+# 注册时绑定 name，而非硬编码
+registry.register("memory_acquire_recent", acquire_recent_impl)
+registry.register("memory_acquire_lightrem", acquire_lightrem_impl)
+```
+
+### 推荐方案
+
+| 方案 | 适用场景 | 推荐度 |
+|------|----------|--------|
+| **@tool 装饰器** | Agent 工具、函数式风格 | ⭐⭐⭐ 推荐 |
+| **Registry 模式** | 需要动态注册、配置驱动 | ⭐⭐ 可选 |
+| **Pydantic + ClassVar** | 与现有代码一致性优先 | ⭐ 保留兼容 |
+
+对于 Deep Dream，推荐使用 **@tool 装饰器**：
+- 工具数量固定，不需要动态注册
+- 函数式风格更符合 Agent 调用逻辑
+- 避免 ClassVar 硬编码的匹配问题
 
 ---
 
@@ -935,7 +959,8 @@ def get_dream_tool_definitions() -> list[dict]:
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| v1.3-draft | 2026-05-21 | 补充工具定义示例：Pydantic BaseModel + ClassVar 模式，借鉴 tool_schemas.py |
+| v1.4-draft | 2026-05-21 | 工具定义方案对比：推荐 @tool 装饰器模式，避免 ClassVar 硬编码问题 |
+| v1.3-draft | 2026-05-21 | 补充工具定义示例：Pydantic BaseModel + ClassVar 模式 |
 | v1.2-draft | 2026-05-21 | 补充演进路径：流水线 → 工具，Agent 自管理目标 |
 | v1.1-draft | 2026-05-20 | 改用 OpenClaw-inspired MVP：LightRemAcquire + SimplePromotionProcess |
 | v1.0-draft | 2026-05-20 | 初版设计（Stanford Reflection MVP）|
