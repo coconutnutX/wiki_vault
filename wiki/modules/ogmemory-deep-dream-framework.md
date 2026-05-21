@@ -44,6 +44,75 @@ Acquire（获取） → Process（处理） → Output（输出）
 
 这种架构借鉴了 Unix Pipeline 的设计哲学：每个组件专注单一职责，组件间通过标准接口连接，组合方式由配置决定。
 
+### 演进路径：从流水线到工具
+
+最终目标是让 Agent 自主完成记忆整合。为此，Deep Dream 的设计遵循**流水线 → 工具**的演进路径：
+
+**阶段 1：流水线模式（过渡）**
+- 预定义流程，配置驱动策略组合
+- HTTP 端点或 Light+REM 触发
+- 快速验证逻辑有效性
+- 流水线内部调用工具 handler
+
+**阶段 2：工具模式（最终形态）**
+- 每个策略实现暴露为 Agent 工具
+- Agent 按需组合、动态决策
+- Reactive Extract 和 Deep Dream 都由 Agent 主导
+- 提供组合工具（deep_dream）支持一键调用
+
+**兼容设计**：借鉴 oG-Memory 现有的 `tool_schemas.py` 模式，使用 **Pydantic BaseModel + ClassVar** 定义工具：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        工具层（最终形态）                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   Pydantic Model（输入 schema + 执行逻辑）                       │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │ MemoryAcquireRecentInput(BaseModel):                    │   │
+│   │   limit: int = Field(default=100)                       │   │
+│   │   tool_name: ClassVar[str] = "memory_acquire_recent"    │   │
+│   │   tool_description: ClassVar[str] = "..."               │   │
+│   │                                                         │   │
+│   │   def execute(self, ctx, context_fs) -> list[Node]:     │   │
+│   │       # 策略逻辑直接写在 Model 里                        │   │
+│   │       return context_fs.list_recent(self.limit)         │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                                                                  │
+│   工具列表                                                       │
+│   - MemoryAcquireRecentInput                                    │
+│   - MemoryAcquireLightremInput                                  │
+│   - MemoryProcessPromotionInput                                 │
+│   - MemoryProcessDeduplicateInput                               │
+│   - MemoryOutputCreateInput                                     │
+│                                                                  │
+│   DeepDreamInput (组合工具，一键调用)                            │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                              ↑
+                              │ 调用 Model.execute()
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                      流水线层（过渡阶段）                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   DeepDreamPipeline.run()                                        │
+│       ├── acquire → MemoryAcquireLightremInput(...).execute()   │
+│       ├── process → MemoryProcessPromotionInput(...).execute()  │
+│       ├── output → MemoryOutputCreateInput(...).execute()       │
+│                                                                  │
+│   HTTP 端点 /api/v1/deepdream ──▶ 调用 Pipeline                  │
+│   Light+REM 触发 ──────────────▶ 调用 Pipeline                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**好处**：
+- 代码复用：策略实现 = 工具 handler
+- 渐进演进：先验证流水线，后交给 Agent
+- 灵活度：Agent 可一键调用或细粒度组合
+- 向后兼容：HTTP 端点继续服务外部触发
+
 ---
 
 ## 概述
@@ -623,12 +692,13 @@ oG-Memory/
 │   ├── __init__.py              # 模块入口
 │   ├── pipeline.py              # DeepDreamPipeline, DeepDreamReport
 │   ├── models.py                # DreamOutput 数据结构
+│   ├── tool_schemas.py          # Pydantic 工具定义（借鉴 extraction/tool_schemas.py）
 │   ├── strategies/
 │   │   ├── __init__.py
-│   │   ├── acquire.py           # AcquireStrategy, RecentAcquire, CompositeAcquire
-│   │   ├── process.py           # ProcessStrategy, SimplePromotionProcess, DeduplicationProcess
-│   │   └── output.py            # OutputExecutor（复用 ContextWriter）
-│   └── factory.py               # PipelineFactory（从配置构建 Pipeline）
+│   │   ├── acquire.py           # Acquire 逻辑（作为 tool schema 的 execute 方法）
+│   │   ├── process.py           # Process 逻辑（作为 tool schema 的 execute 方法）
+│   │   └── output.py            # Output 逻辑（作为 tool schema 的 execute 方法）
+│   └── factory.py               # PipelineFactory
 │   └── config.py                # 配置解析
 │
 ├── server/
@@ -642,6 +712,191 @@ oG-Memory/
 ├── commit/
 │   └── merge_policies.py        # 新增: DreamPolicy
 ```
+
+---
+
+## 工具定义示例
+
+借鉴 oG-Memory 现有的 `extraction/tool_schemas.py` 模式：
+
+```python
+# deepdream/tool_schemas.py
+
+from pydantic import BaseModel, Field
+from typing import ClassVar
+
+
+class MemoryAcquireRecentInput(BaseModel):
+    """获取最近 N 条记忆作为 Deep Dream 输入。
+    
+    借鉴 extract_*_Input 的设计模式：
+    - Pydantic BaseModel 定义输入 schema
+    - ClassVar 定义 tool_name / tool_description
+    - execute() 方法包含执行逻辑
+    """
+    
+    limit: int = Field(default=100, description="最大获取数量")
+    category_filter: list[str] | None = Field(
+        default=None,
+        description="可选的 category 过滤列表"
+    )
+    
+    tool_name: ClassVar[str] = "memory_acquire_recent"
+    tool_description: ClassVar[str] = (
+        "获取最近 N 条记忆作为 Deep Dream 输入。"
+        "返回 ContextNode 列表，按 updated_at 排序。"
+    )
+    
+    def execute(self, ctx: RequestContext, context_fs: ContextFS) -> list[ContextNode]:
+        """执行获取逻辑（策略实现）。
+        
+        流水线和 Agent 都调用此方法。
+        """
+        # 1. 从 context_fs.list_children 获取记忆 URI
+        # 2. 按 metadata.updated_at 排序
+        # 3. 取最近 self.limit 条
+        # 4. 过滤 category（如有）
+        # 5. 使用 context_fs.read_node 获取完整内容
+        ...
+
+
+class MemoryAcquireLightremInput(BaseModel):
+    """从 Light+REM 模块获取候选记忆。"""
+    
+    source: str = Field(default="default", description="输入源标识")
+    
+    tool_name: ClassVar[str] = "memory_acquire_lightrem"
+    tool_description: ClassVar[str] = (
+        "从 Light+REM 模块获取候选记忆。"
+        "Light+REM 输出格式待定义。"
+    )
+    
+    def execute(self, ctx: RequestContext, context_fs: ContextFS) -> list[ContextNode]:
+        """从 Light+REM 输出获取候选。"""
+        # 读取 Light+REM 模块的输出文件或 API
+        ...
+
+
+class MemoryProcessPromotionInput(BaseModel):
+    """处理候选记忆，生成晋升输出。"""
+    
+    min_score_threshold: float = Field(default=0.0, description="最低评分阈值")
+    
+    tool_name: ClassVar[str] = "memory_process_promotion"
+    tool_description: ClassVar[str] = (
+        "处理候选记忆，生成晋升输出。"
+        "MVP 版本直接转换，后续可添加评分机制。"
+    )
+    
+    memories: list[ContextNode]  # 输入来自 acquire
+    
+    def execute(self, ctx: RequestContext) -> list[DreamOutput]:
+        """处理记忆，生成 DreamOutput。"""
+        outputs = []
+        for memory in self.memories:
+            outputs.append(DreamOutput(
+                content=memory.content,
+                abstract=memory.abstract,
+                dream_type="promotion",
+                importance=memory.metadata.get("score", 1.0),
+                provenance_ids=memory.metadata.get("provenance_ids", []),
+                action=WriteAction.CREATE,
+            ))
+        return outputs
+
+
+class MemoryOutputCreateInput(BaseModel):
+    """创建新的 dream 记忆。"""
+    
+    outputs: list[DreamOutput]  # 输入来自 process
+    
+    tool_name: ClassVar[str] = "memory_output_create"
+    tool_description: ClassVar[str] = (
+        "创建新的 dream 记忆。"
+        "将 DreamOutput 转换为 CandidateMemory，通过 ContextWriter 写入。"
+    )
+    
+    def execute(self, ctx: RequestContext, context_writer: ContextWriter) -> list[WritePlan]:
+        """执行写入。"""
+        plans = []
+        for output in self.outputs:
+            candidate = self._to_candidate(output, ctx)
+            plan = context_writer.write_candidate(candidate, ctx)
+            plans.append(plan)
+        return plans
+    
+    def _to_candidate(self, output: DreamOutput, ctx: RequestContext) -> CandidateMemory:
+        """转换 DreamOutput → CandidateMemory。"""
+        ...
+
+
+class DeepDreamInput(BaseModel):
+    """组合工具：一键执行完整 Deep Dream 流程。"""
+    
+    acquire_strategy: str = Field(default="lightrem", description="获取策略")
+    process_strategy: str = Field(default="promotion", description="处理策略")
+    
+    tool_name: ClassVar[str] = "deep_dream"
+    tool_description: ClassVar[str] = (
+        "执行完整的 Deep Dream 流程。"
+        "内部组装流水线，一键调用。"
+    )
+    
+    def execute(self, ctx, context_fs, vector_index, llm, context_writer) -> DeepDreamReport:
+        """组装并执行流水线。"""
+        # 根据 acquire_strategy 选择对应的 Input Model
+        if self.acquire_strategy == "lightrem":
+            acquire_input = MemoryAcquireLightremInput()
+        else:
+            acquire_input = MemoryAcquireRecentInput()
+        
+        # 执行各阶段
+        memories = acquire_input.execute(ctx, context_fs)
+        
+        process_input = MemoryProcessPromotionInput(memories=memories)
+        outputs = process_input.execute(ctx)
+        
+        output_input = MemoryOutputCreateInput(outputs=outputs)
+        plans = output_input.execute(ctx, context_writer)
+        
+        return DeepDreamReport(...)
+
+
+# 工具列表（用于 get_tool_definitions）
+DREAM_TOOL_MODELS = [
+    MemoryAcquireRecentInput,
+    MemoryAcquireLightremInput,
+    MemoryProcessPromotionInput,
+    MemoryOutputCreateInput,
+    DeepDreamInput,
+]
+
+
+def get_dream_tool_definitions() -> list[dict]:
+    """生成 OpenAI/Claude function calling 格式的工具定义。
+    
+    借鉴 extraction/tool_schemas.py 的 get_tool_definitions()。
+    """
+    tools = []
+    for model in DREAM_TOOL_MODELS:
+        schema = model.model_json_schema()
+        tools.append({
+            "name": model.tool_name,
+            "description": model.tool_description,
+            "input_schema": {
+                "type": "object",
+                "properties": {...},
+                "required": [...],
+            }
+        })
+    return tools
+```
+
+**关键优势**：
+- **单一定义**：一个 Pydantic Model 同时定义 schema + 执行逻辑
+- **类型安全**：输入验证由 Pydantic 自动处理
+- **代码复用**：`execute()` 方法被流水线和 Agent 共同调用
+- **一致性**：与现有 `extraction/tool_schemas.py` 模式完全一致
 
 ---
 
@@ -680,5 +935,7 @@ oG-Memory/
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.3-draft | 2026-05-21 | 补充工具定义示例：Pydantic BaseModel + ClassVar 模式，借鉴 tool_schemas.py |
+| v1.2-draft | 2026-05-21 | 补充演进路径：流水线 → 工具，Agent 自管理目标 |
 | v1.1-draft | 2026-05-20 | 改用 OpenClaw-inspired MVP：LightRemAcquire + SimplePromotionProcess |
 | v1.0-draft | 2026-05-20 | 初版设计（Stanford Reflection MVP）|
