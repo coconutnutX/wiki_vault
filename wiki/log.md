@@ -1,12 +1,19 @@
 ---
 type: meta
 title: "Wiki Log"
-updated: 2026-05-20
+updated: 2026-05-21
 ---
 
 # Wiki Log
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
+
+## 2026-05-21
+
+- **[save]** Lazy Mode Extraction Issues and Optimization Plan → wiki/modules/ (Lazy 模式问题分析：类型判断缺少指导、routing key 规范化不足、重复检测缺失、冲突分析缺失 + P0-P3 优化方案 + 测试验证策略)
+- **[update]** modules/_index.md — 补充 Lazy Mode Extraction Issues 条目
+- **[update]** hot.md — 更新最近上下文：Lazy 模式优化、类型判断、routing key 规范化
+- **[commit]** oG-Memory `de991dc5` — refactor: replace hard-coded early termination with prompt-driven decision (删除硬编码 early termination，改用 prompt instruction 让 LLM 自主决策何时终止)
 
 ## 2026-05-20
 
