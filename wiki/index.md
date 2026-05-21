@@ -10,6 +10,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 
 ## Modules
 - [[ogmemory-deep-dream-framework]] — Deep Dream 记忆整合框架：三阶段流水线、可插拔策略、dream category、溯源机制
+- [[ogmemory-tool-definition-refactor-analysis]] — 工具定义改造分析：YAML vs @tool 模式对比、推荐方案、影响评估
 
 ## Components
 <!-- Reusable UI or functional components -->

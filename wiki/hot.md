@@ -1,27 +1,27 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-20T16:45:00
+updated: 2026-05-21T10:30:00
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-20. Deep Dream 框架设计文档完成，准备进入实现阶段。
+2026-05-21. 工具定义改造分析完成：不推荐完全迁移 @tool，推荐改良现有架构。
 
 ## Key Recent Facts
-- **Deep Dream Framework**: 三阶段流水线（Acquire → Process → Output），策略可插拔可组合，新增 `dream` category
-- **dream category**: URI 格式 `ctx://{account}/users/{user}/memories/dream/{dream_id}/`，与 ProvenanceResolver.dream source_type 对应
-- **溯源机制**: provenance_ids 存储来源记忆 URI + 继承的溯源链
-- **oG-Memory 运行状态**: HTTP 服务运行在 8090 端口，storage_backend=sql，vector_db=opengauss (PostgreSQL+pgvector)
-- **PostgreSQL 配置**: 数据库 ogmemory，用户 ogmem/ogmem123，pgvector 扩展已启用
+- **Tool Definition Refactor**: 不推荐完全迁移 @tool，因为 YAML 数据驱动架构优势明显；推荐改良现有 tool_builder.py
+- **ClassVar 问题**: tool_name 硬编码可能不匹配实际调用，需改为从 schema 自动推导
+- **Deep Dream @tool**: Deep Dream 可直接使用 @tool（独立模块，无历史包袱）
+- **ContextWriter 能力**: CREATE/MERGE/ARCHIVE/DELETE 全部支持，Deep Dream 删除/更新可直接依赖
 - Wiki vault: /mnt/c/Data/wiki-vault，workspace: /data/Workspace2
 
 ## Recent Changes
-- Created: [[ogmemory-deep-dream-framework]] (wiki/modules/) — Deep Dream 框架完整设计文档
-- Updated: [[Wiki Index]] — 添加 Deep Dream 模块条目
+- Created: [[ogmemory-tool-definition-refactor-analysis]] (wiki/modules/) — 工具定义改造分析文档
+- Updated: [[ogmemory-deep-dream-framework]] (wiki/modules/) — 补充 @tool 装饰器推荐方案
+- Updated: [[Wiki Index]] — 添加工具定义分析条目
 
 ## Active Threads
-- Deep Dream 框架设计完成，下一步：实现基础版本（RecentAcquire + StanfordReflection）
-- 需修改文件：core/validation.py、core/uri_resolver.py、commit/merge_policies.py
-- LightDream 集成：后续由其他同事开发，Deep Dream 作为下游消费者
+- 工具定义改造分析完成，下一步：Deep Dream 实现基础版本
+- 方案 C 推荐：改良 tool_builder.py，tool_name 从 schema 推导（~20 行改动）
+- Deep Dream 新模块直接使用 @tool 装饰器
