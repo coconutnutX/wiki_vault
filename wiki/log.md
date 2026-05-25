@@ -8,6 +8,11 @@ updated: 2026-05-21
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
 
+## 2026-05-22
+
+- **[save]** LoCoMo Test Non-Docker Environment Adaptation → wiki/decisions/ (修改 locomo_test 代码支持日志文件读取：log_file 参数、docker_container 空值处理、OGMEM_EXTRACT_LOG_MARKER_ALT 备用标记 + OpenClaw 插件符号链接问题修复 + responses API 端点启用)
+- **[update]** decisions/_index.md, index.md — 补充 LoCoMo Test Non-Docker Environment Adaptation 索引
+
 ## 2026-05-21
 
 - **[save]** Lazy Mode Extraction Issues and Optimization Plan → wiki/modules/ (Lazy 模式问题分析：类型判断缺少指导、routing key 规范化不足、重复检测缺失、冲突分析缺失 + P0-P3 优化方案 + 测试验证策略)

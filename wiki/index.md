@@ -20,6 +20,8 @@ Master catalog of all wiki pages. Updated on every ingest.
 ## Decisions
 - [[Wiki Linking Convention]] — 内联双向链接 + _index.md 索引，不在文末集中列出相关页面
 - [[PostgreSQL Installation Decision]] — 放弃 OpenGauss Docker，改用 apt 安装 PostgreSQL 16：安装命令、清理记录、AGFS 状态
+- [[LoCoMo Test Non-Docker Environment Adaptation]] — 修改 locomo_test 代码支持日志文件读取，适配非 docker 环境
+- [[oG-Memory Extraction Prompt Optimization Decision]] — extraction.yaml 5 处修改：时间精度、细节保留、event/entity 规则、lazy update rules；效果：Cat2+4%但Cat1-18%，总持平
 
 ## Meta
 - [[claude-obsidian Plugin Setup Notes]] — 插件安装、vault 搭建过程中的问题和解决方案
@@ -55,6 +57,10 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[Agent Memory Provenance 追踪实现调研]] — Provenance 实现深度调研：四大方案 + 生态 + 设计模式对比 + 实践建议
 - [[Agentic Memory ReAct Research]] — 2026 ReAct Agent 记忆管理调研：10 篇论文 + 5 个开源项目，技术趋势与架构模式
 - [[oG-Memory ReactLoop Abstract Base Class]] — ReAct 模式抽象基类：Template Method 设计、子类继承扩展、Factory Method 追踪
+- [[oG-Memory Extraction Pipeline Modes]] — lazy/eager 模式架构：SUMMARY_PROMPT 总执行、eager 额外抽取 context_nodes、lazy 查询时才抽取
+
+## Log
+- [[oG-Memory Extraction Prompt Optimization Session]] — 2026-05-22：lazy/eager benchmark 对比、prompt 优化、根因分析发现 SUMMARY_PROMPT 是 lazy 模式真正瓶颈
 
 ## Questions
 <!-- Filed answers to user queries -->
