@@ -13,6 +13,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[ogmemory-tool-definition-refactor-analysis]] — 工具定义改造分析：YAML vs @tool 模式对比、推荐方案、影响评估
 - [[ogmemory-tool-category-analysis]] — 工具分类分析：Extraction vs 操作工具本质区别、整合利弊、分层建议
 - [[ogmemory-operation-tool-optimization]] — 操作工具优化设计：Registry 模式、自动注册、name 推导、分层控制
+- [[ogmemory-react-loop-safety-check]] — ReactLoop 安全检查机制：extract_* tool call 绕过修复、_safety_check_candidates 统一、invalid response 直接结束 loop
 
 ## Components
 <!-- Reusable UI or functional components -->
