@@ -1,27 +1,25 @@
 ---
 type: meta
 title: "Hot Cache"
-updated: 2026-05-26T00:00:00
+updated: 2026-05-26
 ---
 
 # Recent Context
 
 ## Last Updated
-2026-05-26. oG-Memory ReactLoop 安全检查机制修复完成。
+2026-05-26. Dreaming/Consolidation 验证调研完成，已存入 wiki。
 
 ## Key Recent Facts
-- **Safety check bypass 修复**: extract_* tool call 产出的 candidates 原来绕过 `_check_unread_existing_files()`，现在两条路径(content + tool-call)统一走 `_safety_check_candidates()`
-- **Invalid response 处理**: extraction 场景下 disable_tools 继续迭代无意义，改为 `_on_invalid_response()` 返回 True 直接结束 loop
-- **基类新增 2 个 virtual method**: `_post_tool_call_safety_check()` + `_on_invalid_response()`，extraction 子类覆盖
-- **dev_0520 分支**: rebase 完成 + InternalToolUsageTracker 集成 + pipeline_name rename + safety check fix，共4个新 commit 未 push
+- **验证方法只有5类**：消融、迭代曲线、持续学习基准、问答基准、执行测试——没有任何工作专门设计基准测 consolidation 本身效果
+- **最接近 dreaming前后对比**：OpenDream 两遍域匹配（+4pp aggregate, +20pp 3个任务, 0 regression）、ScallopBot LoCoMo（+26% F1, +25% EM）
+- **LongMemEval 关键局限**：假设记忆一次性注入，不测逐步经历→逐步记忆→逐步 dreaming 的过程
+- **测 LongMemEval on ogmemory 需要写6个脚本**：数据格式转换(P0)、注入(P0)、QA+compose(P0)、dreaming验证(P0)、检索命中(P1)、判题(复用)
 
 ## Recent Changes
-- Modified: `core/react_loop.py` — 新增 `_post_tool_call_safety_check()` 和 `_on_invalid_response()` virtual methods
-- Modified: `extraction/extraction_react_loop.py` — `_safety_check_candidates()` 统一方法 + `_on_invalid_response()` 覆盖
-- Modified: `tests/unit/extraction/test_react_loop.py` — 测试更新为期望 early loop termination
-- Committed: `1b5690c3` fix: unify safety check for extract_* tool calls and end loop on invalid response
-- Committed: `23915b41` fix: add missing prompt_manager arg to integration test
+- Created: `wiki/concepts/dreaming-consolidation-validation-survey.md`
+- Updated: `wiki/index.md` — 新增条目
 
 ## Active Threads
-- SUMMARY_PROMPT 优化 (summary_generator.py) — 下一步最有提升空间的方向
-- dev_0520 PR 描述待更新（新增 safety check fix commit）
+- oGMemory deep dreaming 验证方案设计（下一步）
+- LongMemEval 数据格式适配脚本（待写）
+- ScallopBot 与 OpenDream 评估代码详解已完成

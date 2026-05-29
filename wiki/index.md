@@ -59,6 +59,8 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[Agentic Memory ReAct Research]] — 2026 ReAct Agent 记忆管理调研：10 篇论文 + 5 个开源项目，技术趋势与架构模式
 - [[oG-Memory ReactLoop Abstract Base Class]] — ReAct 模式抽象基类：Template Method 设计、子类继承扩展、Factory Method 追踪
 - [[oG-Memory Extraction Pipeline Modes]] — lazy/eager 模式架构：SUMMARY_PROMPT 总执行、eager 额外抽取 context_nodes、lazy 查询时才抽取
+- [[dreaming-consolidation-validation-survey]] — Dreaming/Consolidation 验证调研：5类验证方法、3梯队代表工作、关键Gap、LongMemEval详解、oGMemory适配脚本清单
+- [[scallopbot-opendream-eval-code-deep-dive]] — ScallopBot 与 OpenDream 评估代码详解：F1/EM算法、cognitive tick流程、两遍域匹配设计、可借鉴要点与局限
 
 ## Log
 - [[oG-Memory Extraction Prompt Optimization Session]] — 2026-05-22：lazy/eager benchmark 对比、prompt 优化、根因分析发现 SUMMARY_PROMPT 是 lazy 模式真正瓶颈

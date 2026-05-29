@@ -1,12 +1,17 @@
 ---
 type: meta
 title: "Wiki Log"
-updated: 2026-05-21
+updated: 2026-05-27
 ---
 
 # Wiki Log
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
+
+## 2026-05-27
+
+- **[save]** oG-Memory @operational_tool Framework Design → wiki/modules/ (轻量装饰器框架设计：operational tools vs extraction tools 分类、函数签名自动生成schema、runtime参数过滤、dict dispatch替代if/elif、loop级工具集配置、Deep Dream扩展示例。关联 [[ogmemory-deep-dream-framework]] 方案B重新审视、[[ogmemory-tool-category-analysis]]、[[ogmemory-operation-tool-optimization]]、[[ogmemory-tool-definition-refactor-analysis]]）
+- **[update]** modules/_index.md — 补充 @operational_tool Framework 条目
 
 ## 2026-05-22
 
