@@ -9,7 +9,7 @@ updated: 2026-05-20
 Master catalog of all wiki pages. Updated on every ingest.
 
 ## Modules
-- [[ogmemory-deep-dream-framework]] — Deep Dream 记忆整合框架：三阶段流水线、可插拔策略、dream category、溯源机制
+- [[ogmemory-deep-dream-framework]] — Deep Dream 记忆整合框架：两层 schema 设计、prompt-driven tool、Bug 修复、字段统一
 - [[ogmemory-tool-definition-refactor-analysis]] — 工具定义改造分析：YAML vs @tool 模式对比、推荐方案、影响评估
 - [[ogmemory-tool-category-analysis]] — 工具分类分析：Extraction vs 操作工具本质区别、整合利弊、分层建议
 - [[ogmemory-operation-tool-optimization]] — 操作工具优化设计：Registry 模式、自动注册、name 推导、分层控制
@@ -34,6 +34,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 <!-- Data flows, request paths, auth flows -->
 
 ## Repos
+- [[Letta Code Memory System Deep Dive]] — Letta Code 记忆系统深度调研：三层记忆体系、MemFS git-backed 存储、reflection 5-phase 流水线、检索注入策略、冲突解决
 - [[OpenClaw Memory System Overview]] — 系统综合介绍：双插件架构、槽位系统、复刻要点
 - [[OpenClaw Memory Backend Comparison]] — 后端差异分析：memory-core vs memory-lancedb、SQLite 索引层
 - [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应：插件系统、Dreaming、批判性分析
