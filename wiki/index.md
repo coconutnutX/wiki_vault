@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Wiki Index"
-updated: 2026-05-20
+updated: 2026-06-04
 ---
 
 # Wiki Index
@@ -14,6 +14,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[ogmemory-tool-category-analysis]] — 工具分类分析：Extraction vs 操作工具本质区别、整合利弊、分层建议
 - [[ogmemory-operation-tool-optimization]] — 操作工具优化设计：Registry 模式、自动注册、name 推导、分层控制
 - [[ogmemory-react-loop-safety-check]] — ReactLoop 安全检查机制：extract_* tool call 绕过修复、_safety_check_candidates 统一、invalid response 直接结束 loop
+- [[ogmemory-deep-dream-e2e-test-guide]] — DeepDream 端到端测试指南：清空DB→注入LoCoMo对话→调用Dream→查看产出SQL、日志追踪、provenance解析
 
 ## Components
 <!-- Reusable UI or functional components -->
