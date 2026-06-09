@@ -7,19 +7,25 @@ updated: 2026-06-01
 # Recent Context
 
 ## Last Updated
-2026-06-01. Deep Dream wiki 页面更新为 v3.0-implemented，反映实际代码状态。
+2026-06-09. RecallLogger bug 复盘写入 wiki-vault。
 
 ## Key Recent Facts
-- Deep Dream 两层 schema 设计: schemas/ (存储层) + tool_specs/ (LLM 工具层)
-- Bug 1 修复: check_dream_duplicate 改用 get_directory_uri 跨 registry 查找
-- Bug 2 修复: _on_invalid_response 覆盖，防止 tools 被禁用
-- 字段统一: overview 移除(=abstract)，importance→confidence(0.0-1.0)
-- dev_0530 commit: d1829b75 (bug fixes), 4ec24d25 (refactoring)
+- 2025 新范式 Sleep-Time Compute：Anthropic/OpenAI 主推 agent 在会话间隙做离线推理
+- Sleep Rewrites Rules (Farooq 2024, Nature)：dream 不仅回放记忆，还抽象通用规则
+- KG Hierarchical Abstraction：4层图谱渐进压缩（raw→episodic→semantic→conceptual）
+- Deep Dream 改进路线图：P0 interleaved acquire + conflict resolution, P1 rule_discovery + deprecation + semantic_merge
+- 新增 4 个 prompt-driven tool 建议：process_rule_discovery, process_conflict_resolution, process_deprecation, process_semantic_merge
 
 ## Recent Changes
-- Updated: `wiki/modules/ogmemory-deep-dream-framework.md` — v3.0-implemented
-- Updated: `wiki/index.md` — 更新描述
+- Created: `wiki/modules/ogmemory-recalllogger-bug-retrospective.md`
+- Created: `wiki/concepts/agent-dream-consolidation-landscape-2025.md`
+- Created: `wiki/concepts/dream-modifying-existing-memories-storage-analysis.md`
+- Updated: `wiki/index.md` — 新增两个概念页链接
+- Updated: `wiki/concepts/_index.md` — 新增两行
 
 ## Active Threads
+- RecallLogger content.md 修复已验证（compose 写入 16 行），logging fix (PR #28) 待合入
 - oGMemory deep dreaming 验证方案设计（下一步）
+- Deep Dream 多工具扩展设计（rule_discovery, conflict_resolution, deprecation, semantic_merge）
+- Dream 修改已有记忆路径选择：短期 RelationEdge 降权 vs 中期 DEPRECATED 状态 vs 长期 MergePolicy 混合
 - SchemaField vs field dict 统一重构（待决策）

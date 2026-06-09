@@ -9,6 +9,7 @@ updated: 2026-06-04
 Master catalog of all wiki pages. Updated on every ingest.
 
 ## Modules
+- [[ogmemory-recalllogger-bug-retrospective]] — RecallLogger search_recall 表写入失败的 bug 复盘：content.md 过滤是根因，logging formatter 是独立问题
 - [[ogmemory-deep-dream-framework]] — Deep Dream 记忆整合框架：两层 schema 设计、prompt-driven tool、Bug 修复、字段统一
 - [[ogmemory-tool-definition-refactor-analysis]] — 工具定义改造分析：YAML vs @tool 模式对比、推荐方案、影响评估
 - [[ogmemory-tool-category-analysis]] — 工具分类分析：Extraction vs 操作工具本质区别、整合利弊、分层建议
@@ -63,6 +64,8 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[oG-Memory Extraction Pipeline Modes]] — lazy/eager 模式架构：SUMMARY_PROMPT 总执行、eager 额外抽取 context_nodes、lazy 查询时才抽取
 - [[dreaming-consolidation-validation-survey]] — Dreaming/Consolidation 验证调研：5类验证方法、3梯队代表工作、关键Gap、LongMemEval详解、oGMemory适配脚本清单
 - [[scallopbot-opendream-eval-code-deep-dive]] — ScallopBot 与 OpenDream 评估代码详解：F1/EM算法、cognitive tick流程、两遍域匹配设计、可借鉴要点与局限
+- [[agent-dream-consolidation-landscape-2025]] — Agent Dream/Consolidation 研究全景 2025：Sleep-Time Compute、Sleep Rewrites Rules 规则抽象、KG 分层压缩、Self-Play+Experience Replay、Deep Dream 改进路线图
+- [[dream-modifying-existing-memories-storage-analysis]] — Deep Dream 修改已有记忆可行性：ContextFS 协议已预留 upsert/archive/delete，版本管理有乐观锁但无历史版本，Dream 当前只走 add_only，4种修改路径对比（D短期→C中期→A+C长期）
 
 ## Log
 - [[oG-Memory Extraction Prompt Optimization Session]] — 2026-05-22：lazy/eager benchmark 对比、prompt 优化、根因分析发现 SUMMARY_PROMPT 是 lazy 模式真正瓶颈
