@@ -37,6 +37,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 
 ## Repos
 - [[Letta Code Memory System Deep Dive]] — Letta Code 记忆系统深度调研：三层记忆体系、MemFS git-backed 存储、reflection 5-phase 流水线、检索注入策略、冲突解决
+- [[Letta Code Reflection Dream Prompt Deep Dive]] — Reflection/Dream prompt 全拆解：子代理 system prompt 逐段分析、user prompt 拼装逻辑、transcript 格式、budget 截断降级、触发调度、完成后 system prompt 重编译、与 oG-Memory Deep Dream 对比
 - [[OpenClaw Memory System Overview]] — 系统综合介绍：双插件架构、槽位系统、复刻要点
 - [[OpenClaw Memory Backend Comparison]] — 后端差异分析：memory-core vs memory-lancedb、SQLite 索引层
 - [[OpenClaw Memory Architecture Analysis]] — 架构与代码对应：插件系统、Dreaming、批判性分析

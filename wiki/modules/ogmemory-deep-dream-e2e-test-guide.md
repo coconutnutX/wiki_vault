@@ -3,7 +3,7 @@ type: module
 title: "oG-Memory DeepDream E2E Test Guide"
 status: active
 created: 2026-06-04
-updated: 2026-06-04
+updated: 2026-06-09
 tags: [ogmemory, deepdream, testing, e2e, locomo]
 related:
   - "[[oG-Memory Operations Guide]]"
@@ -39,12 +39,46 @@ related:
 pkill -f "python server/app.py"
 sleep 3
 cd /data/Workspace2/oG-Memory
-nohup python server/app.py > /tmp/ogmem_stdout.log 2>&1 &
+conda activate py11
+nohup python -u server/app.py > /tmp/ogmem_stdout.log 2>&1 &
 sleep 10
 curl -s http://127.0.0.1:8090/api/v1/health
 ```
 
-> **注意**：日志重定向到 `/tmp/ogmem_stdout.log`。原始 `.ogmem_data/logs/context_engine.log` 不再使用。
+> **注意**：
+> - 必须用 `python -u` 禁用 stdout buffering，否则 print/logger 输出不会实时写入日志文件。
+> - 日志重定向到 `/tmp/ogmem_stdout.log`。原始 `.ogmem_data/logs/context_engine.log` 不再使用。
+> - 必须先 `conda activate py11`，否则依赖模块找不到。
+
+### OutboxWorker 自动启动
+
+**不需要单独启动 index worker 进程。** OutboxWorker 在 server/app.py 进程内以后台线程自动运行：
+
+- **SQL backend**：使用 `SQLNotifyListener`（PostgreSQL `NOTIFY/LISTEN` 机制），ingest 写入 outbox_event 后通过 PostgreSQL NOTIFY 实时触发，几乎零延迟索引。
+- **AGFS backend**（已弃用）：使用 `OutboxScheduler` 定时轮询（5s interval），需要单独进程 `ogmem start --mode index`。
+
+启动时机：`_start_outbox_worker()` 在 `get_write_api()` 和 `get_read_api()` 初始化时自动调用（idempotent，仅启动一次）。
+
+验证 OutboxWorker 是否运行：
+```bash
+# 检查 outbox_events 是否被及时消费
+PGPASSWORD=ogmem123 psql -h 127.0.0.1 -U ogmem -d ogmemory -c "SELECT count(*) FROM outbox_events WHERE status = 'pending';"
+# 期望：0（所有事件已被处理）
+```
+
+### AGFS 已弃用
+
+当前部署 **仅使用 PostgreSQL (SQL backend)**，AGFS 相关配置和进程不再需要：
+
+- `ogmem start` (headless 模式) 原来会同时启动 AGFS server + ContextEngine，现在 AGFS binary 不存在也不影响。
+- `config/ogmem.yaml` 中 `storage.backend: sql` 已设置，不依赖 AGFS。
+- `scripts/run_index_service.py` 是 AGFS 时代的独立 index 进程，现在不需要运行。
+- health check 返回 `{"agfs":false, "storage_backend":"sql"}` 是正常的。
+
+不需要关注的 AGFS 遗留项：
+- `.ogmem_data/agfs.pid` / `.ogmem_data/logs/agfs.log` — 不存在也无所谓
+- `agfs/` 目录 — AGFS binary build 目录，可忽略
+- `AGFS_BASE_URL` 环境变量 — 不需要设置
 
 ## 3. 清空数据库
 
@@ -360,4 +394,30 @@ SQL storage 中 flat scan 找到叶子节点（如 profile）后不走 known_cat
 
 ### Q: content.md 子节点无法 read
 
-content.md 是 vector_index 的 chunk 节点，不是 context_nodes 的可读条目。已在代码中过滤，不会出现在 acquire_recent/acquire_search 的返回结果中。
+content.md 是 vector_index 的 chunk 节点，不是 context_nodes 的可读条目。已在代码中映射到父节点 URI（`removesuffix("/content.md")`），不会出现在 acquire_recent/acquire_search 的返回结果中，也不会以原始 content.md URI 写入 search_recall。
+
+### Q: compose 返回空结果（retrievedEvidence 为空）
+
+检查 `accountId` 是否正确。测试数据都在 `acct-demo` 下，如果用其他 account_id（如 `acme`）发送 compose 请求，向量搜索不会返回任何 hits，RecallLogger 也不会写入 search_recall。
+
+验证方法：
+```bash
+PGPASSWORD=ogmem123 psql -h 127.0.0.1 -U ogmem -d ogmemory -c "SELECT DISTINCT account_id FROM context_nodes;"
+```
+
+### Q: search_recall 表没有新增数据
+
+两个条件同时满足才会写入：`RecallLogger is not None AND result.hits` 不为空。
+
+1. compose 返回了 hits → RecallLogger 会被调用
+2. compose 返回空结果 → 没有 hits，不会写入
+
+验证 search_recall 数据：
+```bash
+PGPASSWORD=ogmem123 psql -h 127.0.0.1 -U ogmem -d ogmemory -c "
+SET app.account_id = 'acct-demo';
+SELECT uri, query_text, score, category FROM search_recall ORDER BY id DESC LIMIT 10;
+"
+```
+
+注意：必须设 `SET app.account_id` 否则 RLS 会返回 0 行。
