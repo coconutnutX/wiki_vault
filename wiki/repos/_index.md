@@ -23,3 +23,4 @@ External repositories researched for architecture, patterns, and design decision
 | [[oG-Memory Extraction and Storage Example]] | local (oG-Memory) | Python | 抽取与存储实例详解：从原始对话到持久化的完整数据流示例 | active |
 | [[oG-Memory Session Archive vs Extracted Memory]] | local (oG-Memory) | Python | Session Archive 与抽取记忆串行执行、数据独立、仅 extraction_summary 去重 | active |
 | [[oG-Memory Provenance Design RFC]] | local (oG-Memory) | Python | Provenance RFC：现状分析 + ID 方案 + 实现路径，用于团队对齐讨论 | draft |
+| [[LongMemEval Benchmark Deep Dive]] | github.com/xiaowu0162/LongMemEval | Python | ICLR 2025 长期对话记忆基准：5种核心能力、在线解析流程、复现要点 | active |

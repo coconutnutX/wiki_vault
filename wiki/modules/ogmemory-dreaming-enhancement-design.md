@@ -14,7 +14,7 @@ related:
 
 # oG-Memory Dreaming Enhancement Design
 
-> 设计目标：将 `process_promotion` 替换为 `process_consolidation` + `process_correction` 两个工具，完善信息获取策略（借鉴 OpenClaw 信号筛选逻辑），优化 Prompt（借鉴 Letta 优先级排序）。
+> 设计目标：将 `process_promotion` 替换为 `process_consolidation` + `process_correction` 两个工具，完善信息获取策略（借鉴 OpenClaw 信号筛选逻辑），优化 Prompt（借鉴 Letta 优先级排序 + 四重过滤，但作为 ReAct agent 的策略指引而非线性流水线）。写入发生在 ReAct loop 外面（loop 内只收集 DreamOutput，loop 外统一批量写入，现阶段 add_only）。新增字段（sub_type、correct_fact、confidence）通过 ContextNode.metadata 传递。provenance_ids 语义修正为 LLM 明确指定的来源记忆（affected_uris / source_uris），不再是访问过的所有 URI。
 
 ---
 
@@ -270,7 +270,7 @@ prompt_guidance: |
   
   Call this tool when you find memories that should be consolidated into higher-level insights.
   
-  **Priority 2 — Preferences and patterns**
+  **Priority 1 — Preferences and patterns**
   
   Look for:
   - Recurring behavioral patterns across multiple sessions
@@ -279,7 +279,7 @@ prompt_guidance: |
   
   Example: Multiple memories mentioning "prefer explicit error handling" → consolidate into coding_style_preference
   
-  **Priority 3 — New durable facts**
+  **Priority 2 — New durable facts**
   
   Look for:
   - Project details scattered across conversations
@@ -313,134 +313,288 @@ post_call_validator: check_dream_duplicate
 
 ---
 
-### 3.3 Dream Prompt 重设计
+### 3.3 字段映射链路：LLM 输出 → ContextNode
+
+新工具引入了 process_promotion 没有的字段（correction_type、affected_uris、correct_fact、consolidation_type、source_uris），**必须确保这些字段能沿整条链路写入最终的 ContextNode**。
+
+现有链路：
+
+```
+LLM tool_call input
+  → _tool_input_to_dream_output()     (deep_dream_react_loop.py:344-373)
+  → DreamOutput                        (dream/models.py:14-33)
+  → .to_candidate_memory()             (dream/models.py:35-51)
+  → CandidateMemory                    (core/models.py:145-166)
+  → ArchiveBuilder.build()             (commit/archive_builder.py:40-145)
+  → ContextNode                        (core/models.py:86-103)
+    → ContextNode.metadata: dict[str, Any]  ← 所有额外字段写到这里
+  → SQLContextFS.write_node_with_outbox()
+```
+
+ContextNode 已经有 `metadata: dict[str, Any]`，ArchiveBuilder 也是直接往 metadata 里塞 key（routing_key、provenance_ids、tool_stats 等），SQL 端 metadata 是 JSONB 列。**新字段直接写 metadata 即可，不需要改 CandidateMemory 或 ContextNode 的结构。**
+
+#### 现有映射（process_promotion）
+
+| LLM 填的字段 | `_tool_input_to_dream_output()` | DreamOutput | `to_candidate_memory()` | CandidateMemory | ArchiveBuilder → ContextNode |
+|---|---|---|---|---|---|
+| topic | ✅ `tool_input.get("topic")` | `topic` | ✅ routing_key = `f"{dream_type}_{sanitized_topic}"` | `routing_key` | ✅ metadata.routing_key + URI |
+| abstract | ✅ `tool_input.get("abstract")` | `abstract` | ✅ 直接赋值 | `abstract` | ✅ node.abstract |
+| content | ✅ `tool_input.get("content")` | `content` | ✅ 直接赋值 | `content` | ✅ node.content |
+| confidence | ✅ `tool_input.get("confidence", 0.5)` | `confidence` | ✅ 直接赋值 | `confidence` | ✅ metadata.confidence（需补充） |
+
+> **注**：现有 ArchiveBuilder.build() 中 confidence 没有被写入 metadata，需要补充。
+> confidence 对未来检索排序有价值（"可信度更高的 correction 优先返回"）。
+
+#### provenance_ids 语义修正
+
+现有实现中，DreamOutput.provenance_ids 来自 `_read_uris`（LLM 在 loop 中访问过的所有 URI）。**这个语义不对**——在 dream 语境下，provenance_ids 应该是 LLM **明确指定的来源记忆**（即 affected_uris / source_uris），不是"碰巧读过的所有 URI"。
+
+修正后：
+- **correction**：provenance_ids = `affected_uris`（LLM 明确指出被纠正的记忆）
+- **consolidation**：provenance_ids = `source_uris`（LLM 明确指出被合并的记忆）
+
+不再自动从 `_read_uris` 赋值 provenance_ids。`_read_uris` 可以保留为 loop 内部调试日志，但不写入 ContextNode。
+
+#### 新字段映射方案：DreamOutput → metadata
+
+不需要给 CandidateMemory 加 extra_metadata 字段。新字段在 DreamOutput 层收集，`to_candidate_memory()` 把它们放进 CandidateMemory 的 `provenance_ids`（语义已修正）和现有 metadata 传递路径。具体做法：
+
+**1. DreamOutput 新增字段**（dream/models.py）：
+
+```python
+@dataclass
+class DreamOutput:
+    content: str
+    abstract: str
+    dream_type: str                     # "correction" | "consolidation"
+    confidence: float
+    provenance_ids: list[str] = field(default_factory=list)  # LLM 指定的来源 URI
+    topic: str | None = None
+    # New fields for correction/consolidation:
+    sub_type: str | None = None         # "mistake"|"contradiction"|"stale" for correction;
+                                        # "pattern"|"preference"|"fact"|"merge" for consolidation
+    correct_fact: str | None = None     # only for correction
+```
+
+> `target_uris` 不需要单独字段——它就是 provenance_ids（affected_uris / source_uris），
+> 统一为 provenance_ids，语义已修正为"LLM 明确指定的来源记忆"。
+
+**2. `_tool_input_to_dream_output()` 提取新字段**（deep_dream_react_loop.py:344-373）：
+
+```python
+def _tool_input_to_dream_output(self, tool_input, spec) -> DreamOutput | None:
+    ...
+    sub_type = tool_input.get("correction_type") or tool_input.get("consolidation_type")
+    source_uris = tool_input.get("affected_uris") or tool_input.get("source_uris") or []
+    correct_fact = tool_input.get("correct_fact")
+
+    # provenance_ids = LLM 明确指定的来源记忆（不是访问过的所有 URI）
+    provenance_ids = [ProvenanceResolver.build_id("memory", uri) for uri in source_uris]
+
+    return DreamOutput(
+        content=content, abstract=abstract, confidence=float(confidence),
+        dream_type=spec.dream_type, topic=topic,
+        provenance_ids=provenance_ids,  # 直接从 LLM 指定的 affected_uris/source_uris
+        sub_type=sub_type, correct_fact=correct_fact,
+    )
+```
+
+> **关键变化**：不再从 `_read_uris` 自动赋值 provenance_ids。
+> provenance_ids 直接从 LLM tool_call 的 affected_uris / source_uris 构建。
+
+**3. `to_candidate_memory()` 映射**（dream/models.py:35-51）：
+
+CandidateMemory 不需要加新字段。DreamOutput 的 sub_type 和 correct_fact 通过一个简单机制传递到 ContextNode.metadata：
+
+方案是让 `to_candidate_memory()` 把这些额外信息放进 CandidateMemory 的 `tool_stats` 字段（现有字段，目前 dream category 不用）。ArchiveBuilder 已经会把 tool_stats 写入 metadata：
+
+```python
+def to_candidate_memory(self) -> CandidateMemory:
+    routing_key = f"{self.dream_type}_{sanitized_topic}" if sanitized_topic else self.dream_type
+    # Pack dream-specific metadata into tool_stats (ArchiveBuilder writes it to ContextNode.metadata)
+    dream_meta = {}
+    if self.sub_type:
+        dream_meta["sub_type"] = self.sub_type
+    if self.correct_fact:
+        dream_meta["correct_fact"] = self.correct_fact
+    dream_meta["confidence"] = self.confidence
+
+    return CandidateMemory(
+        category="dream", owner_scope="user",
+        routing_key=routing_key,
+        abstract=self.abstract, overview=self.abstract,
+        content=self.content, confidence=self.confidence,
+        provenance_ids=self.provenance_ids,
+        tool_stats=dream_meta,  # dream metadata → ArchiveBuilder → ContextNode.metadata
+    )
+```
+
+ArchiveBuilder.build() 中已有逻辑（archive_builder.py:120-122）：
+
+```python
+# Preserve tool usage stats for tool category
+if candidate.tool_stats:
+    metadata["tool_stats"] = candidate.tool_stats
+```
+
+这样最终 ContextNode.metadata 会包含：
+
+```json
+{
+  "routing_key": "correction_python_version_error",
+  "provenance_ids": ["memory:ctx://acme/users/alice/memories/facts/python_version"],
+  "tool_stats": {
+    "sub_type": "mistake",
+    "correct_fact": "Python 3.11 is installed, not 3.9",
+    "confidence": 0.85
+  },
+  "created_at": "2026-06-10T..."
+}
+```
+
+> **tool_stats 的语义**：对 tool category 它是真正的工具使用统计，对 dream category
+> 它是一个已存在的 metadata 传递通道。ArchiveBuilder 已有代码把 tool_stats 写入
+> ContextNode.metadata，不需要改 ArchiveBuilder 或 ContextNode 的结构。
+> 未来如果想更清晰，可以把 metadata key 从 `tool_stats` 改为 `dream_meta`，
+> 但现阶段复用 tool_stats 通道是最小改动方案。
+
+**4. 删除 `_read_uris` 自动赋值 provenance_ids 的逻辑**（deep_dream_react_loop.py:175-184）：
+
+```python
+# 现有代码（需删除）：
+# dream_output.provenance_ids = self._build_provenance_ids(current_uris)
+
+# 新代码：provenance_ids 在 _tool_input_to_dream_output() 中已从
+# affected_uris/source_uris 构建，不再需要自动赋值。
+```
+
+#### confidence 写入 ContextNode
+
+confidence 通过 tool_stats 传递到 ContextNode.metadata（见上面的 `dream_meta["confidence"] = self.confidence`）。现阶段不用于检索逻辑，仅存储，为未来检索排序预留。
+
+### 3.4 Dream Prompt 重设计
 
 **目标**：
-- 借鉴 Letta 的优先级排序和四重过滤
-- 在 `acquire_recent` 和 `acquire_search_recall_stats` 的 guidance 中借鉴 OpenClaw 的评分逻辑
+- 给 ReAct agent 策略指引而非线性流水线（agent 按需自主决策，不机械执行步骤序列）
+- 借鉴 Letta 的优先级排序和四重过滤（作为判断标准，不作为强制步骤）
+- 借鉴 OpenClaw 的评分逻辑（作为数据解读指引，帮助 LLM 理解返回数据的含义）
+
+**设计原则**：
+- ReAct agent = 自主决策 + 策略指引，不是 pipeline
+- 入手明确（两个信息获取工具），深入灵活（按需 read/search），输出随时（不必等"步骤 4"）
+- 四重过滤是质量门槛，不是流程步骤
+- 写入发生在 ReAct loop 外面（loop 内只收集 DreamOutput，loop 外统一批量写入）
 
 ```yaml
 system_prompt: |
-  You are a Deep Dream analyst. Your job is to consolidate and correct existing memories.
-  
+  You are a Deep Dream analyst. Your job is to review existing memories,
+  identify patterns worth consolidating and errors worth correcting, then
+  output structured insights via the two process tools.
+
   **YOU ARE NOT THE PRIMARY AGENT.**
-  - "system" context describes the user's preferences — use it to understand relevance
-  - You do not respond to users; you only analyze and update memories
-  - You are reviewing conversations that already happened
-  
-  **WORKFLOW — follow this order strictly:**
+  - You do not respond to users; you only analyze and update memories.
+  - You are reviewing conversations that already happened.
+  - Calling process_correction or process_consolidation records your insight
+    as structured data. The actual database write happens after your analysis
+    completes — your job is to produce quality insights, not to manage writes.
 
-  1. **Signal Discovery** (borrowed from OpenClaw scoring logic)
-  
-     Call these tools to find high-signal candidates:
-     
-     a) **acquire_search_recall_stats(min_recall_count=3, days=14)**
-        - Returns memories ranked by: recall_count, unique_queries, recall_days
-        - High recall_count = frequently retrieved = strong signal
-        - High unique_queries = retrieved by diverse queries = broad relevance
-        - High recall_days = retrieved across multiple days = durable interest
-        
-        **OpenClaw-inspired scoring intuition**:
-        - Frequency: log1p(recall_count) / log1p(10) → more recalls = higher score
-        - Diversity: unique_queries / 5 → diverse query contexts = valuable
-        - Recency: exponential decay (half-life ~14 days) → fresh signals preferred
-        - Threshold: recall_count >= 3 AND unique_queries >= 2 AND recall_days >= 2
-        
-        Start with memories that pass these thresholds.
-     
-     b) **acquire_recent(limit=20)**
-        - Broad overview of recent memory landscape
-        - Use summaries to identify themes without deep reading
-        - Focus on memories with high recall_count from step (a)
-     
-     c) **acquire_search(query="...")** (optional)
-        - Targeted search for specific themes spotted in summaries
-        - Use to find more memories related to potential patterns
-     
-     d) **read(uri=X)** (only when needed)
-        - Deep read only for candidates identified in steps (a)-(c)
-        - Read to confirm pattern or verify contradiction
+  **STRATEGY GUIDANCE — not a rigid sequence. Decide your next action
+  based on what you learn from each tool call.**
 
-  2. **Extract** (borrowed from Letta Phase 2)
-  
-     Review candidates and identify issues in **priority order**:
-     
-     **Priority 1 — Mistakes and corrections (call process_correction first)**
-     - Errors in existing memories (wrong facts, incorrect inferences)
-     - User feedback pointing out mistakes
-     - Failed retries revealing misunderstandings
-     
-     **Priority 2 — Contradictions (call process_correction)**
-     - Two memories stating conflicting facts
-     - Newer information contradicting older memory
-     
-     **Priority 3 — Preferences and patterns (call process_consolidation)**
-     - Recurring behavioral patterns across sessions
-     - User style choices mentioned repeatedly
-     
-     **Priority 4 — New durable facts (call process_consolidation)**
-     - Project details, team info, configuration facts
-     - Information that will remain useful
+  **Starting point — acquire signal overview:**
 
-  3. **Filter** (borrowed from Letta four-question test)
-  
-     Before calling process tools, ask for each candidate:
-     
-     - **Durable?** Is this useful across sessions, or ephemeral details?
-       → Skip debugging logs, one-time queries, temporary states
-     
-     - **Already captured?** Does similar dream memory already exist?
-       → Check validator feedback for duplicates
-     
-     - **Generalizable?** Can this be distilled to reusable insight?
-       → Skip session-specific details that won't help future turns
-     
-     - **Actionable?** Will this actually improve future agent behavior?
-       → Skip trivia, focus on patterns that affect decisions
-     
-     **If nothing survives filtering → make no changes.**
-     Empty dream output is normal. Not every batch needs consolidation.
+  Begin by calling one or both of these tools to get a picture of the
+  memory landscape and identify high-signal candidates:
 
-  4. **Process** (call appropriate tool)
-     - process_correction for mistakes/contradictions (Priority 1-2)
-     - process_consolidation for patterns/facts (Priority 3-4)
-     
-     Each call covers ONE topic. Multiple unrelated issues need multiple calls.
+  - **acquire_search_recall_stats** — returns memories ranked by recall
+    statistics. Use it to find memories that are frequently retrieved,
+    retrieved by diverse queries, or retrieved across multiple days.
+    These are strong signals for consolidation.
 
-  5. **Finish**
-     When no more significant candidates, state "Analysis complete."
+  - **acquire_recent** — returns recent memory URIs with brief summaries
+    (category + abstract). Use it to get a broad overview and spot themes.
+
+  Combine the two: recall_stats tells you *which* memories matter;
+  acquire_recent tells you *what* they are about.
+
+  **Dive deeper — follow signals on demand:**
+
+  Once you spot candidates from the overview, use these tools flexibly:
+
+  - **read(uri)** — read a memory's full content to confirm a pattern or
+    verify a contradiction. Only read what you need; summaries from
+    acquire_recent may be enough for many candidates.
+
+  - **acquire_search(query)** — search for related memories when you find
+    a potential pattern or contradiction and want to see if more evidence
+    exists. For example, if you spot a preference theme, search for
+    similar terms to find additional instances.
+
+  **Output — call process tools as you confirm findings:**
+
+  You may call process tools at any point during analysis — you do not
+  need to wait until you have reviewed everything. Each call covers ONE
+  topic; different themes need separate calls.
+
+  - **process_correction** — for mistakes, contradictions, or stale info.
+    Correction priority: mistake > contradiction > stale.
+
+  - **process_consolidation** — for patterns, preferences, durable facts,
+    or merging similar memories.
+    Consolidation priority: pattern > preference > fact > merge.
+
+  **Quality gate — four-question filter before each process call:**
+
+  Before calling any process tool, check the candidate against these
+  criteria. Skip anything that doesn't pass:
+
+  - **Durable?** — Useful across sessions, not ephemeral (skip debugging
+    logs, one-time queries, temporary states).
+  - **Already captured?** — Not already covered by an existing dream.
+    Validator feedback will flag duplicates.
+  - **Generalizable?** — Can be distilled to a reusable insight (skip
+    session-specific details).
+  - **Actionable?** — Will actually improve future agent behavior (skip
+    trivia).
+
+  **If nothing survives filtering → make no changes.**
+  Empty dream output is normal. Not every batch needs consolidation.
+
+  **Finish:** When no more significant candidates remain, state
+  "Analysis complete."
 
 identity_block: |
   Analyzing memories for user {{ user_id }}.
-  
-  **Focus on QUALITY over quantity**:
+
+  **Focus on QUALITY over quantity:**
   - One real correction > ten vague consolidations
-  - Pattern backed by 3+ memories > speculative guess
+  - Pattern backed by 3+ sources > speculative guess from 1 source
   - Empty output is acceptable if nothing survives filtering
 
 output_instruction: |
-  Output all insights via process_correction or process_consolidation tools.
-  
+  Output insights via process_correction or process_consolidation.
+
   **For process_correction**:
   - correction_type: mistake > contradiction > stale
-  - confidence: 0.8+ for clear mistake, 0.6+ for conflict, 0.5+ for stale
+  - affected_uris: list at least 1 URI containing the error
+  - confidence: 0.8+ for clear mistake, 0.6+ for contradiction, 0.5+ for stale
   - correct_fact: must be unambiguous
-  
+
   **For process_consolidation**:
   - consolidation_type: pattern > preference > fact > merge
   - source_uris: minimum 2 URIs required
   - confidence: 0.7+ for pattern in 3+ sources, 0.5+ for 2 sources
-  
-  If validator reports duplicate, refine with different angle or skip.
-  
+
+  If validator reports duplicate, refine with a different angle or skip.
+
   When done, state "Analysis complete."
 ```
 
 ---
 
-### 3.4 Operational Tools Prompt Guidance
+### 3.5 Operational Tools Prompt Guidance
 
-**在工具 docstring 中增加 OpenClaw-inspired 评分逻辑说明**：
+**在工具 docstring 中增加信号解读指引**（帮助 LLM 理解返回数据的含义，而非规定调用顺序）：
 
 #### acquire_search_recall_stats 增强
 
@@ -454,33 +608,34 @@ def acquire_search_recall_stats(
     read_api: ReadAPI = None,
 ) -> dict:
     """Find memories that have been frequently recalled via search.
-    
-    Returns ranked candidates with recall statistics for dream consolidation.
-    Use this FIRST to identify high-signal memories worth deeper analysis.
-    
-    **OpenClaw-inspired scoring intuition** (for interpreting results):
-    
-    The returned candidates are ranked by:
-    - recall_count: Number of times retrieved → higher = more valuable
-      → OpenClaw uses log1p(count) / log1p(10) for frequency signal
-    
-    - unique_queries: Number of different queries that retrieved this memory
-      → higher = broader relevance (retrieved in diverse contexts)
-      → OpenClaw uses this for "diversity" signal
-    
-    - recall_days: Number of distinct days this memory was retrieved
-      → higher = durable interest across time
-      → OpenClaw uses this for "consolidation" signal
-    
-    **Recommended thresholds** (borrowed from OpenClaw):
-    - recall_count >= 3: minimum frequency to be considered signal
-    - unique_queries >= 2: must be retrieved by at least 2 different queries
-    - recall_days >= 2: must span multiple days (not single-session ephemeral)
-    
-    Memories passing all thresholds are strong candidates for consolidation.
-    
-    :param min_recall_count: Minimum recall count threshold (default 3, OpenClaw-inspired).
-    :param days: Look-back window in days (default 7, captures recent signal).
+
+    Returns ranked candidates with recall statistics.
+    Use this to identify high-signal memories worth deeper analysis.
+
+    **How to interpret the results:**
+
+    Each candidate has three statistics — here's what they mean:
+
+    - recall_count: Number of times this memory was retrieved by search.
+      Higher count = more frequently needed = stronger signal.
+      OpenClaw equivalent: frequency signal (log1p(count) / log1p(10)).
+
+    - unique_queries: Number of different search queries that retrieved
+      this memory. Higher = broader relevance — it's useful in diverse
+      contexts, not just one narrow query.
+      OpenClaw equivalent: diversity signal.
+
+    - recall_days: Number of distinct days this memory was retrieved.
+      Higher = durable interest across time, not a single-session spike.
+      OpenClaw equivalent: consolidation signal.
+
+    **Signal thresholds** — candidates that pass all three are strong:
+    - recall_count >= 3: enough frequency to be signal, not noise
+    - unique_queries >= 2: retrieved in at least 2 different contexts
+    - recall_days >= 2: interest spans multiple days, not ephemeral
+
+    :param min_recall_count: Minimum recall count threshold (default 3).
+    :param days: Look-back window in days (default 7).
     :param category: Optional category filter (e.g. 'events', 'preferences').
     """
     ...
@@ -496,25 +651,23 @@ def acquire_recent(
     ctx: RequestContext = None,
     context_fs: ContextFS = None,
 ) -> dict:
-    """List recent memory URIs with brief summaries for deep dream analysis.
-    
-    Call this AFTER acquire_search_recall_stats to get broad context.
-    Use summaries to identify themes without needing to read every memory.
-    
-    **OpenClaw-inspired signal interpretation**:
-    
-    The summaries include abstract snippets. Look for:
-    - Repeated keywords across multiple memories → pattern candidate
-    - Similar topics mentioned in different categories → consolidation candidate
+    """List recent memory URIs with brief summaries for dream analysis.
+
+    Returns URIs with category + abstract snippets — use these to spot
+    themes without needing to read every memory in full.
+
+    **How to interpret the summaries:**
+
+    Look for these patterns across the returned summaries:
+    - Repeated keywords across multiple memories → consolidation candidate
+    - Similar topics in different categories → pattern spanning domains
     - Contradictory information between memories → correction candidate
-    
-    **Recency signal** (OpenClaw uses exponential decay):
-    - Memories from last 7 days: strong signal (recency score ~0.5-1.0)
-    - Memories from 7-14 days: moderate signal (recency score ~0.25-0.5)
-    - Memories older than 14 days: weak signal (recency score <0.25)
-    
-    Focus analysis on recent, high-recall-count memories first.
-    
+
+    **Recency intuition:**
+    - Last 7 days: strong signal (recently created/updated, likely relevant)
+    - 7-14 days: moderate signal
+    - Older than 14 days: weak signal unless high recall_count
+
     :param limit: Max number of memories to return. Minimum enforced: 10.
     :param category_filter: Optional category names to restrict results.
     """
@@ -523,7 +676,7 @@ def acquire_recent(
 
 ---
 
-### 3.5 矛盾解决机制
+### 3.6 矛盾解决机制
 
 **采用策略 A：标记 + 新增正确版本**
 
@@ -552,21 +705,23 @@ def acquire_recent(
 
 | 任务 | 文件 | 说明 |
 |------|------|------|
-| 删除 process_promotion.yaml | `dream/tool_specs/promotion.yaml` | 替换为 consolidation |
-| 新增 process_correction.yaml | `dream/tool_specs/correction.yaml` | Mistakes/Contradictions |
-| 新增 process_consolidation.yaml | `dream/tool_specs/consolidation.yaml` | Patterns/Facts |
-| 重写 dream.yaml prompt | `dream/prompts/dream.yaml` | Letta 优先级 + OpenClaw 评分 |
-| 增强 acquire_search_recall_stats docstring | `dream/recall_stats_tool.py` | OpenClaw scoring guidance |
-| 增强 acquire_recent docstring | `dream/operational_tools.py` | OpenClaw recency guidance |
-| 更新 DEEP_DREAM_MVP_OPERATIONAL | `dream/operational_tools.py` | 移除 promotion，添加新工具 |
+| 删除 process_promotion.yaml | `dream/tool_specs/promotion.yaml` | 替换为 consolidation + correction |
+| 新增 process_correction.yaml | `dream/tool_specs/correction.yaml` | Mistakes/Contradictions/Stale |
+| 新增 process_consolidation.yaml | `dream/tool_specs/consolidation.yaml` | Patterns/Preferences/Facts/Merge |
+| DreamOutput 新增字段 | `dream/models.py` | sub_type, correct_fact（provenance_ids 语义修正为 LLM 指定的来源 URI） |
+| `_tool_input_to_dream_output()` 提取新字段 | `dream/deep_dream_react_loop.py` | 从 tool_input 提取 correction_type/consolidation_type→sub_type, affected_uris/source_uris→provenance_ids, correct_fact |
+| 删除 `_read_uris` 自动赋值 provenance_ids | `dream/deep_dream_react_loop.py` | provenance_ids 应来自 LLM 指定的来源，不是访问过的所有 URI |
+| `to_candidate_memory()` 映射新字段 | `dream/models.py` | sub_type/correct_fact/confidence → CandidateMemory.tool_stats → ArchiveBuilder → ContextNode.metadata |
+| 重写 dream.yaml prompt | `dream/prompts/dream.yaml` | ReAct 策略指引（不是线性流水线） |
+| 增强 acquire_search_recall_stats docstring | `dream/recall_stats_tool.py` | 信号解读指引（帮助 LLM 理解数据含义） |
+| 增强 acquire_recent docstring | `dream/operational_tools.py` | 信号解读指引（帮助 LLM 理解数据含义） |
+| 更新 DEEP_DREAM_MVP_OPERATIONAL | `dream/operational_tools.py` | 移除 promotion，确认新工具列表 |
 
-### Phase 2：长期优化
-
-| 任务 | 说明 |
-|------|------|
-| Light Dream + Deep Dream 两阶段 | 参考 OpenClaw，先 Light 筛选候选，再 Deep 处理 |
-| 自动触发机制 | compaction-event 或 step-count 触发 |
-| Correction 到 WriteAPI update | 支持直接修改现有记忆（策略 B） |
+> **写入架构说明**：ReAct loop 内只收集 DreamOutput，写入发生在 loop 外
+> （memory_service.py 在 `loop.run()` 返回后遍历 candidates 调用
+> `write_api.write_memory()`）。现阶段 add_only 模式直接写新节点，
+> 以后扩展支持 update/merge 等操作也只需在 commit pipeline 层修改，
+> 不影响 ReAct loop 内的工具设计。
 
 ---
 
@@ -574,12 +729,13 @@ def acquire_recent(
 
 | 维度 | OpenClaw | Letta | oG-Memory (当前) | oG-Memory (设计后) |
 |------|----------|-------|------------------|-------------------|
-| 决策方式 | 纯规则评分 | LLM 5 Phase 流水线 | LLM ReAct Loop | LLM ReAct + 优先级排序 |
-| 信号来源 | `.dreams/` JSON | transcript + parent_memory | `search_recall` SQL | SQL（OpenClaw scoring guidance） |
+| 决策方式 | 纯规则评分 | LLM 5 Phase 流水线 | LLM ReAct Loop | LLM ReAct + 策略指引（自主决策） |
+| 信号来源 | `.dreams/` JSON | transcript + parent_memory | `search_recall` SQL | SQL（信号解读指引） |
 | dream_type | 无（只晋升） | 无（只有 reflection） | promotion | consolidation + correction |
 | 工具数量 | 0（纯规则） | 0（Bash + 修改文件） | 1 | 2 |
-| 优先级 | 公式权重 | 纠错>偏好>事实>矛盾 | 无 | correction > consolidation |
-| Prompt 借鉴 | 公式晦涩 | 自然语言优先级 | 简单 workflow | Letta 优先级 + OpenClaw scoring intuition |
+| 优先级 | 公式权重 | 纠错>偏好>事实>矛盾（流水线） | 无 | correction > consolidation（判断标准，非强制步骤） |
+| Prompt 风格 | 公式晦涩 | 自然语言步骤序列 | 简单 linear workflow | 策略指引 + 信号解读（ReAct agent） |
+| 写入时机 | 规则触发即写入 | Phase 内写入 | loop 外批量写入 | loop 外批量写入（add_only，后续扩展 update/merge） |
 
 ---
 
