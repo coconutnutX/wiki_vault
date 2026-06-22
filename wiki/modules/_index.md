@@ -16,4 +16,5 @@ One note per major module / package / service.
 | RecallLogger Bug 复盘 | dream/recall_logger.py | fixed | Python | content.md 过滤导致 DB 写入失败 + logging formatter 静默丢失，两个独立 bug |
 | DeepDream LongMemEval 测试计划 | scripts/ingest_dream_data.py | draft | Python | 用 LongMemEval 数据验证 deepdream 流程（注入→dream→验证） |
 | DeepDream LongMemEval 操作手册 | — | verified | — | 端到端操作手册：环境配置、启动、注入、dream、SQL 查看、踩坑总结 |
+| Dream36 重测进度 0622 | — | in-progress | — | doubao提取+gpt-4o-mini compose/dream + GLM-5 reader/judge 重测，schema migration阻塞 |
 <!-- Rows added during ingest -->

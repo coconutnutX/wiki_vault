@@ -24,6 +24,26 @@
       "type": "file",
       "ctime": 1781142527377,
       "path": "wiki/modules/ogmemory-deepdream-longmemeval-e2e-runbook.md"
+    },
+    {
+      "type": "file",
+      "ctime": 1781178127443,
+      "path": "wiki/modules/longmemeval-dream36-test-report.md"
+    },
+    {
+      "type": "file",
+      "ctime": 1781250630105,
+      "path": "wiki/modules/longmemeval-result-comparison-xlsx-guide.md"
+    },
+    {
+      "type": "file",
+      "ctime": 1782098495953,
+      "path": "wiki/modules/longmemeval-dream36-retest-progress-0622.md"
+    },
+    {
+      "type": "file",
+      "ctime": 1782108790606,
+      "path": "wiki/modules/longmemeval-test-standardization.md"
     }
   ]
 }

@@ -1,12 +1,25 @@
 ---
 type: meta
 title: "Wiki Log"
-updated: 2026-05-27
+updated: 2026-06-12
 ---
 
 # Wiki Log
 
 Chronological record of all wiki operations. Append-only — never edit past entries. New entries go at the TOP.
+
+## 2026-06-12
+
+- **[save]** longmemeval-result-comparison-xlsx-guide → wiki/modules/ (测试结果对比 XLSX 生成流程：evidence_diff 全文 set 对比逻辑（跳过 header 行、不用 key 匹配）、7个踩坑修正（No difference bug、CSV 打不开、冻结行、API key 不匹配、UnsupportedModel）、完整生成脚本、SQL 查看方法、列结构说明。关联 [[ogmemory-deepdream-longmemeval-e2e-runbook]]、[[longmemeval-dream36-test-report]]）
+- **[update]** index.md — 补充 longmemeval-result-comparison-xlsx-guide 索引
+
+- **[save]** Letta Sleep-time Compute 与 Dream 评估分析 → wiki/concepts/ (对比 Letta Sleep-time Compute 与 MemOS Dream 评估方法：Leaderboard/Recovery-Bench 不适合测 Dream（测试工具调用能力而非整合质量，时间尺度不匹配），真正可复用的是论文数学测试逻辑（test-time compute 减少）和跨对话整合测试（Dream-specific）。总结3种可行方法：数学推理测试、跨对话整合测试、LoCoMo+Dream insertion。关联 [[agent-dream-consolidation-landscape-2025]]、[[Letta Code Memory System Deep Dive]]、[[dreaming-consolidation-validation-survey]])
+- **[update]** concepts/_index.md, index.md — 补充 Letta Sleep-time Compute 与 Dream 评估分析索引
+
+## 2026-06-11
+
+- **[save]** longmemeval-dream36-test-report → wiki/modules/ (Dream_36 端到端测试完整记录：owner_space 跨用户泄漏 bug 根因分析（seed_retriever + build_context）、OpenCode 修复方案、before-dream 0%→61.1% 对比、after-dream 准确率不变、DeepDream dilution 效果不明显、agent 级别 case 记忆残留泄漏问题。关联 [[ogmemory-deep-dream-framework]]、[[ogmemory-deep-dream-e2e-test-guide]]）
+- **[update]** index.md — 补充 longmemeval-dream36-test-report 索引
 
 ## 2026-05-27
 

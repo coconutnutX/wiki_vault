@@ -1,7 +1,7 @@
 ---
 type: meta
 title: "Wiki Index"
-updated: 2026-06-04
+updated: 2026-06-11
 ---
 
 # Wiki Index
@@ -16,6 +16,9 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[ogmemory-operation-tool-optimization]] — 操作工具优化设计：Registry 模式、自动注册、name 推导、分层控制
 - [[ogmemory-react-loop-safety-check]] — ReactLoop 安全检查机制：extract_* tool call 绕过修复、_safety_check_candidates 统一、invalid response 直接结束 loop
 - [[ogmemory-deep-dream-e2e-test-guide]] — DeepDream 端到端测试指南：清空DB→注入LoCoMo对话→调用Dream→查看产出SQL、日志追踪、provenance解析
+- [[longmemeval-dream36-test-report]] — LongMemEval Dream_36 测试报告：owner_space 跨用户泄漏 bug 发现与修复、before/after-dream 61.1%对比、DeepDream dilution 效果分析
+- [[longmemeval-test-standardization]] — LongMemEval 测试流程规范：实验命名、目录结构、数据库隔离、日志管理、服务启停、run_config 完整配置、踩坑清单
+- [[longmemeval-result-comparison-xlsx-guide]] — 测试结果对比 XLSX 生成流程：evidence_diff 对比逻辑、7个踩坑修正、完整生成脚本、SQL/文件查看方法
 
 ## Components
 <!-- Reusable UI or functional components -->
@@ -66,6 +69,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 - [[dreaming-consolidation-validation-survey]] — Dreaming/Consolidation 验证调研：5类验证方法、3梯队代表工作、关键Gap、LongMemEval详解、oGMemory适配脚本清单
 - [[scallopbot-opendream-eval-code-deep-dive]] — ScallopBot 与 OpenDream 评估代码详解：F1/EM算法、cognitive tick流程、两遍域匹配设计、可借鉴要点与局限
 - [[agent-dream-consolidation-landscape-2025]] — Agent Dream/Consolidation 研究全景 2025：Sleep-Time Compute、Sleep Rewrites Rules 规则抽象、KG 分层压缩、Self-Play+Experience Replay、Deep Dream 改进路线图
+- [[letta-sleep-time-compute-dream-evaluation-analysis]] — Letta Sleep-time Compute 与 Dream 评估分析（⚠️原文修正版）：论文验证的是数学推理compute efficiency而非记忆整理效果，Leaderboard/Recovery-Bench不适合测Dream，可复用pareto对比框架但task须改为对话场景，截至目前无公开数据直接验证Dream效果
 - [[dream-modifying-existing-memories-storage-analysis]] — Deep Dream 修改已有记忆可行性：ContextFS 协议已预留 upsert/archive/delete，版本管理有乐观锁但无历史版本，Dream 当前只走 add_only，4种修改路径对比（D短期→C中期→A+C长期）
 
 ## Log
