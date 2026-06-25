@@ -10,6 +10,7 @@ Master catalog of all wiki pages. Updated on every ingest.
 
 ## Modules
 - [[memoryagentbench-lme-s-run-20260624]] — 2026-06-24 新 API key 重跑 MABench LongMemEval S*：4 个新 blocker（embedder连HF hang / RLS FORCE每次重开→BYPASSRLS / 残留eval占worker / nltk无条件下载hang）+ embedder死局（无API embedding）+ 服务hang→死，含已验证修复与实用命令
+- [[memoryagentbench-lme-s-test-standardization]] — MemoryAgentBench LongMemEval S* 测试流程规范：固定 user_id owner_space、chunk 级进度恢复、--contexts 选择运行、原子写入、踩坑清单
 - [[ogmemory-recalllogger-bug-retrospective]] — RecallLogger search_recall 表写入失败的 bug 复盘：content.md 过滤是根因，logging formatter 是独立问题
 - [[ogmemory-deep-dream-framework]] — Deep Dream 记忆整合框架：两层 schema 设计、prompt-driven tool、Bug 修复、字段统一
 - [[ogmemory-tool-definition-refactor-analysis]] — 工具定义改造分析：YAML vs @tool 模式对比、推荐方案、影响评估
