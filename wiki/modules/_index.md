@@ -17,4 +17,5 @@ One note per major module / package / service.
 | DeepDream LongMemEval 测试计划 | scripts/ingest_dream_data.py | draft | Python | 用 LongMemEval 数据验证 deepdream 流程（注入→dream→验证） |
 | DeepDream LongMemEval 操作手册 | — | verified | — | 端到端操作手册：环境配置、启动、注入、dream、SQL 查看、踩坑总结 |
 | Dream36 重测进度 0622 | — | in-progress | — | doubao提取+gpt-4o-mini compose/dream + GLM-5 reader/judge 重测，schema migration阻塞 |
+| MABench LME-S 2026-06-24 运行 | — | in-progress | — | 新 API key 重跑：4 个新 blocker（embedder 连HF hang / RLS FORCE 每次重开 / 残留eval占worker / nltk无条件下载hang）+ embedder 死局 + 服务hang→死，含已验证修复与实用命令 |
 <!-- Rows added during ingest -->
